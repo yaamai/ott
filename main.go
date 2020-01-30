@@ -13,6 +13,7 @@ import (
 
 //	"strings"
 	"bytes"
+	"encoding/hex"
 )
 
 
@@ -43,47 +44,85 @@ func NewRunner() (*Runner, error) {
 
 
 func getMarkerCommand(marker []byte) []byte {
-	return append(append([]byte("\n"), marker...), []byte("\n")...)
+	return append(append([]byte("\necho -n "), marker...), []byte("\n")...)
 }
 
-func checkMarker(startMarker, endMarker, buffer []byte) (bool, []byte) {
+
+func calcStartMarker(marker, buffer []byte, markerPos []int) (int, int) {
+	// get marker line start-pos from marker-start-pos ( sh-5.0$ echo <marker> )
+	markerStartPos := markerPos[2]
+	markerLineStartPos := bytes.LastIndex(buffer[:markerStartPos], []byte("\r\n"))
+	markerLineStartPos += 2
+	markerLineEndPos := bytes.Index(buffer[markerLineStartPos:], []byte("\r\n"))
+	log.Println("marker-line", markerLineStartPos, markerLineEndPos, hex.Dump(buffer[markerLineStartPos:markerLineStartPos+markerLineEndPos]))
+
+	return markerLineStartPos, markerLineStartPos+markerLineEndPos
+}
+
+func calcEndMarker(marker, buffer []byte, markerPos []int) (int, int) {
+	endMarkerPos := markerPos[2] + markerPos[3]
+	markerLineStartPos := bytes.LastIndex(buffer[:endMarkerPos], []byte("\r\n"))
+	markerLineStartPos += 2
+	markerLineEndPos := bytes.Index(buffer[endMarkerPos:], []byte("\r\n"))
+	return markerLineStartPos, endMarkerPos+markerLineEndPos
+}
+
+func getLineByPos(buffer []byte, pos int) (int, int) {
+	// get line by pos
+	// \r\nhogehoge\r\n
+	//       ^ = pos==5
+	// -> (2, 11) (hogehoge\r\n)
+
+	lineStart := bytes.LastIndex(buffer[:pos], []byte("\r\n"))
+	lineEnd := bytes.Index(buffer[pos:], []byte("\r\n"))
+	log.Println("getLineByPos", lineStart, lineEnd)
+	return lineStart+2, pos+lineEnd+2
+}
+
+func checkMarker(marker, buffer []byte) (bool, []byte) {
 	search_start_pos := 0
-	// to skip echo-back marker
-	pos := bytes.Index(buffer[search_start_pos:], []byte(startMarker))
-	if pos == -1 {
-		return false, nil
-	}
-	search_start_pos = pos + 1
-	pos = bytes.Index(buffer[search_start_pos:], []byte(startMarker))
-	if pos == -1 {
-		return false, nil
-	}
-	search_start_pos = pos + 1
-	pos = bytes.Index(buffer[search_start_pos:], []byte(endMarker))
-	if pos == -1 {
-		return false, nil
+	// search marker in
+        // `echo <marker-echo> \n command \n <marker-echo> <marker> command-output <marker>`
+	marker_pos := make([]int, 4)
+	for i := 0; i < 4; i++ {
+		pos := bytes.Index(buffer[search_start_pos:], marker)
+		if pos == -1 {
+			log.Println(i)
+			return false, nil
+		}
+		log.Println("check", search_start_pos, pos)
+		marker_pos[i] = search_start_pos + pos
+		search_start_pos = search_start_pos + pos + len(marker) + 1
 	}
 
-	return true, buffer
+
+	// get target cmdline
+	// output_start_pos := 0
+	// log.Println(marker_pos)
+	// log.Println(hex.Dump(buffer))
+
+	_, outputStart := getLineByPos(buffer, marker_pos[2])
+	outputEnd, _ := getLineByPos(buffer, marker_pos[3])
+	return true, buffer[outputStart:outputEnd]
 }
 
 func (r *Runner) ExecuteCommand(cmd string) {
-	START_MARKER := []byte("### OTT-START ###")
-	END_MARKER := []byte("### OTT-END ###")
-	r.ptmx.Write(getMarkerCommand(START_MARKER))
+	MARKER := []byte("### OTT-OTT ###")
+	r.ptmx.Write(getMarkerCommand(MARKER))
 	r.ptmx.Write([]byte(cmd))
-	r.ptmx.Write(getMarkerCommand(END_MARKER))
+	r.ptmx.Write(getMarkerCommand(MARKER))
 
 	buffer := make([]byte, 65535)
 	write_pos := 0
 	// marker_pos := 0
-	pre_end_marker_pos := -1
-	post_end_marker_pos := -1
+	//pre_end_marker_pos := -1
+	//post_end_marker_pos := -1
 	idx := 0
 	for idx < 100 {
 		l, _ := r.ptmx.Read(buffer[write_pos:])
 		write_pos += l
-		isFinished, _ := checkMarker(START_MARKER, END_MARKER, buffer[:write_pos])
+		isFinished, b := checkMarker(MARKER, buffer[:write_pos])
+		log.Println(string(b))
 		if isFinished {
 			break
 		}
@@ -94,7 +133,6 @@ func (r *Runner) ExecuteCommand(cmd string) {
 		//	}
 		//	start_marker_pos = marker_pos
 		//}
-		//log.Println(string(buffer))
 		//log.Println((buffer[0:write_pos]))
 		// if pre_end_marker_pos != -1 && post_end_marker_pos != -1 {
 		// 	break
@@ -115,8 +153,8 @@ func (r *Runner) ExecuteCommand(cmd string) {
 		// }
 		idx += 1
 	}
-	log.Println(pre_end_marker_pos, post_end_marker_pos)
-	log.Println(string(buffer))
+	//log.Println(pre_end_marker_pos, post_end_marker_pos)
+	//log.Println(string(buffer))
 }
 
 func (r *Runner) read() {
@@ -140,5 +178,5 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	r.ExecuteCommand("env")
+	r.ExecuteCommand("env &&\\\nenv")
 }

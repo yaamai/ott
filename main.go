@@ -82,7 +82,7 @@ func getLineByPos(buffer []byte, pos int) (int, int) {
 func checkMarker(marker, buffer []byte) (bool, []byte) {
 	search_start_pos := 0
 	// search marker in
-        // `echo <marker-echo> \n command \n <marker-echo> <marker> command-output <marker>`
+        // `echo <marker-echo> \n command <marker>\n <marker-echo> <marker> command-output <marker>`
 	marker_pos := make([]int, 4)
 	for i := 0; i < 4; i++ {
 		pos := bytes.Index(buffer[search_start_pos:], marker)
@@ -98,19 +98,33 @@ func checkMarker(marker, buffer []byte) (bool, []byte) {
 
 	// get target cmdline
 	// output_start_pos := 0
-	// log.Println(marker_pos)
-	// log.Println(hex.Dump(buffer))
+	log.Println(marker_pos)
+	log.Println(hex.Dump(buffer))
 
 	_, outputStart := getLineByPos(buffer, marker_pos[2])
 	outputEnd, _ := getLineByPos(buffer, marker_pos[3])
 	return true, buffer[outputStart:outputEnd]
 }
 
+func removeCmdline(buffer, cmd []byte) ([]byte, int, int) {
+	return nil, 0, 0
+}
+
+func generateCommand(cmd string) []byte {
+	return nil
+}
+
 func (r *Runner) ExecuteCommand(cmd string) {
 	MARKER := []byte("### OTT-OTT ###")
-	r.ptmx.Write(getMarkerCommand(MARKER))
-	r.ptmx.Write([]byte(cmd))
-	r.ptmx.Write(getMarkerCommand(MARKER))
+        cmdBytes := []byte(cmd)
+	markerCmd := []byte("\necho -n ")
+	markerCmd = append(markerCmd, MARKER...)
+	markerCmd = append(markerCmd, []byte("\n")...)
+        cmdBytes = append(cmdBytes, []byte(" ")...)
+        cmdBytes = append(cmdBytes, MARKER...)
+
+	r.ptmx.Write(cmdBytes)
+	r.ptmx.Write(markerCmd)
 
 	buffer := make([]byte, 65535)
 	write_pos := 0
@@ -122,8 +136,10 @@ func (r *Runner) ExecuteCommand(cmd string) {
 		l, _ := r.ptmx.Read(buffer[write_pos:])
 		write_pos += l
 		isFinished, b := checkMarker(MARKER, buffer[:write_pos])
-		log.Println(string(b))
+			log.Println(string(b))
 		if isFinished {
+			b2, _, _ := removeCmdline(b, []byte(cmd))
+			log.Println(string(b2))
 			break
 		}
 		//marker_pos := strings.Index(string(buffer)[start_marker_pos+15:], "====")
@@ -178,5 +194,5 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	r.ExecuteCommand("env &&\\\nenv")
+	r.ExecuteCommand("date &&\\\ndate #")
 }

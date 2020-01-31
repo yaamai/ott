@@ -6,8 +6,8 @@ import (
 
 func TestGetMarkedCommand(t *testing.T) {
 	tests := []struct {
-		c string
-                want string
+		c    string
+		want string
 	}{
 		{"", " ### OTT-OTT ###\necho -n ### OTT-OTT ###\n"},
 		{"date", "date ### OTT-OTT ###\necho -n ### OTT-OTT ###\n"},

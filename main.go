@@ -23,5 +23,6 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	s.ExecuteCommand("date &&\\\ndate #")
+	r := s.ExecuteCommand("date &&\\\ndate #")
+	log.Println(r)
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/creack/pty"
-	"log"
 	"os"
 	"os/exec"
 )
@@ -37,7 +36,7 @@ func (r *Session) Cleanup() {
 func getMarkedCommand(cmd string) []byte {
 	cmdBytes := []byte(cmd)
 
-	result := make([]byte, 0, len(cmdBytes) + len(MARKER)*2 + 16)
+	result := make([]byte, 0, len(cmdBytes)+len(MARKER)*2+16)
 	result = append(result, cmdBytes...)
 	result = append(result, SPACE...)
 	result = append(result, MARKER...)
@@ -48,10 +47,10 @@ func getMarkedCommand(cmd string) []byte {
 	return result
 }
 
-func (r *Session) ExecuteCommand(cmd string) {
+func (r *Session) ExecuteCommand(cmd string) string {
 	r.ptmx.Write(getMarkedCommand(cmd))
 
-	// TODO: replace by bytes builder?
+	// TODO: replace by bytes buffer?
 	buffer := make([]byte, 65535)
 	write_pos := 0
 
@@ -60,10 +59,11 @@ func (r *Session) ExecuteCommand(cmd string) {
 		l, _ := r.ptmx.Read(buffer[write_pos:])
 		write_pos += l
 
-		isFinished, b := checkMarker(MARKER, buffer[:write_pos])
-		log.Println(string(b))
-		if isFinished {
-			break
+		isCmdFinished, b := checkMarker(MARKER, buffer[:write_pos])
+		if isCmdFinished {
+			return string(b)
 		}
 	}
+
+	return ""
 }

@@ -1,14 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 )
 
 func TestGetLineByPos(t *testing.T) {
 	tests := []struct {
-		b []byte
-                pos, spos, epos int
-                l string
+		b               []byte
+		pos, spos, epos int
+		l               string
 	}{
 		{[]byte(""), 0, 0, 0, ""},
 		{[]byte("a"), 0, 0, 1, "a"},
@@ -27,6 +28,23 @@ func TestGetLineByPos(t *testing.T) {
 		}
 		if string(tt.b[gotSpos:gotEpos]) != tt.l {
 			t.Fatalf("want = %s, got = %s", tt.l, string(tt.b[gotSpos:gotEpos]))
+		}
+	}
+}
+
+func TestCheckMarker(t *testing.T) {
+	tests := []struct {
+		m, b []byte
+		f    bool
+		o    []byte
+	}{
+		{[]byte("#"), []byte(""), false, []byte("")},
+		{[]byte("#"), []byte("#\r\n#\r\n#\r\naaa\r\naaa\r\n#"), true, []byte("aaa\r\naaa")},
+	}
+	for _, tt := range tests {
+		found, out := checkMarker(tt.m, tt.b)
+		if found != tt.f || !bytes.Equal(out, tt.o) {
+			t.Fatalf("want = %t, %s, got = %t, %s", tt.f, string(tt.o), found, string(out))
 		}
 	}
 }

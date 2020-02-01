@@ -9,38 +9,53 @@ import (
 
 
 type Lineable interface {
+	// TODO: for marshal/unmarshal, provide type string
 	Lines() []string
 }
 
 type TFile struct {
-	Lines []Lineable
+	Lines []Lineable `json:"lines"`
 }
 
 var (
 	CommentLineRe = regexp.MustCompile(`^\s*#.*$`)
 	TestCaseLineRe = regexp.MustCompile(`^.*:\s*$`)
-	TestStepLineRe = regexp.MustCompile(`^  [$>] .*$`)
+	TestStepLineRe = regexp.MustCompile(`^  \$ .*$`)
+	TestStepContinueLineRe = regexp.MustCompile(`^  > .*$`)
 )
 
 func ParseTFile(stream io.Reader) (TFile, error) {
 	t := TFile{}
 	scanner := bufio.NewScanner(stream)
 	var currentTestCase *TestCase
+	var currentTestStep *TestStep
+	// TODO: introduce Context, function-tables to cleanup code
 	for scanner.Scan() {
 		line := scanner.Text()
 		log.Println(line)
 		if CommentLineRe.MatchString(line) {
 			c := Comment{line}
 			t.Lines = append(t.Lines, &c)
+			continue
 		}
 		if TestCaseLineRe.MatchString(line) {
 			testCase := TestCase{Name: line}
 			t.Lines = append(t.Lines, &testCase)
 			currentTestCase = &testCase
+			continue
 		}
 		if currentTestCase != nil {
 			if TestStepLineRe.MatchString(line) {
-				currentTestCase.TestSteps = append(currentTestCase.TestSteps, TestStep{Commands: []Command{Command(line)}})
+				testStep := TestStep{Commands: []Command{Command(line)}}
+				currentTestCase.TestSteps = append(currentTestCase.TestSteps, &testStep)
+				currentTestStep = &testStep
+				continue
+			}
+			if currentTestStep != nil {
+				if TestStepContinueLineRe.MatchString(line) {
+					currentTestStep.Commands = append(currentTestStep.Commands, Command(line))
+					continue
+				}
 			}
 		}
 	}
@@ -48,16 +63,16 @@ func ParseTFile(stream io.Reader) (TFile, error) {
 }
 
 type Comment struct {
-	Line string
+	String string `json:"string"`
 }
 func (c *Comment) Lines() []string {
-	return []string{c.Line}
+	return []string{c.String}
 }
 
 type TestCase struct {
-	Metadata TestMeta
-	Name string
-	TestSteps []TestStep
+	Metadata TestMeta `json:"metadata"`
+	Name string `json:"name"`
+	TestSteps []*TestStep `json:"steps"`
 }
 func (t *TestCase) Lines() []string {
 	return []string{t.Name}
@@ -66,7 +81,7 @@ func (t *TestCase) Lines() []string {
 type TestMeta struct {}
 
 type TestStep struct {
-	Commands []Command
+	Commands []Command `json:"commands"`
 }
 
 type Command string

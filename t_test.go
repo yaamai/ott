@@ -23,7 +23,8 @@ func TestParseTFile(t *testing.T) {
 		{"# comment", TFile{[]Lineable{&Comment{"# comment"}}}, nil},
 		{"# comment\n# comment", TFile{[]Lineable{&Comment{"# comment"}, &Comment{"# comment"}}}, nil},
 		{"a:", TFile{[]Lineable{&TestCase{Name: "a:"}}}, nil},
-		{"a:\n  $ echo a", TFile{[]Lineable{&TestCase{Name: "a:", TestSteps: []TestStep{TestStep{Commands: []Command{Command("  $ echo a")}}}}}}, nil},
+		{"a:\n  $ echo a", TFile{[]Lineable{&TestCase{Name: "a:", TestSteps: []*TestStep{&TestStep{Commands: []Command{Command("  $ echo a")}}}}}}, nil},
+		{"a:\n  $ echo a &&\\\n  > echo b", TFile{[]Lineable{&TestCase{Name: "a:", TestSteps: []*TestStep{&TestStep{Commands: []Command{Command("  $ echo a &&\\"), Command("  > echo b")}}}}}}, nil},
 	}
 	for _, tt := range tests {
 		tFile, err := ParseTFile(strings.NewReader(tt.s))

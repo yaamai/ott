@@ -20,6 +20,8 @@ type TFile struct {
 
 var (
 	CommentLineRe = regexp.MustCompile(`^\s*#.*$`)
+	MetaCommentLineRe = regexp.MustCompile(`^\s*# meta.*$`)
+	MetaDataLineRe = regexp.MustCompile(`^\s*#\s+(.*?):\s*(.*?)$`)
 	TestCaseLineRe = regexp.MustCompile(`^.*:\s*$`)
 	TestStepLineRe = regexp.MustCompile(`^  \$ .*$`)
 	TestStepContinueLineRe = regexp.MustCompile(`^  > .*$`)
@@ -31,17 +33,39 @@ func ParseTFile(stream io.Reader) (TFile, error) {
 	scanner := bufio.NewScanner(stream)
 	var currentTestCase *TestCase
 	var currentTestStep *TestStep
+	var currentTestCaseMeta *TestMeta
 	// TODO: introduce Context, function-tables to cleanup code
 	for scanner.Scan() {
 		line := scanner.Text()
 		log.Println(line)
-		if CommentLineRe.MatchString(line) {
+
+		// parse test case meta
+		if MetaCommentLineRe.MatchString(line) {
+			currentTestCaseMeta = &TestMeta{String: line, Meta: map[string]string{}}
+			continue
+		}
+		if currentTestCaseMeta != nil && CommentLineRe.MatchString(line) {
+			match := MetaDataLineRe.FindStringSubmatch(line)
+			key := match[1]
+			value := match[2]
+			currentTestCaseMeta.Meta[key] = value
+			continue
+		}
+
+		// parse normal comment
+		if currentTestCaseMeta == nil && CommentLineRe.MatchString(line) {
 			c := Comment{line}
 			t.Lines = append(t.Lines, &c)
 			continue
 		}
+
+		// detect test case start
 		if TestCaseLineRe.MatchString(line) {
 			testCase := TestCase{Name: line}
+			if currentTestCaseMeta != nil {
+				testCase.Metadata = *currentTestCaseMeta
+				currentTestCaseMeta = nil
+			}
 			t.Lines = append(t.Lines, &testCase)
 			currentTestCase = &testCase
 			continue
@@ -124,7 +148,10 @@ func (t *TestCase) Lines() []string {
 	return []string{t.Name}
 }
 
-type TestMeta struct {}
+type TestMeta struct {
+	String string `json:"string"`
+	Meta map[string]string `json:"meta"`
+}
 
 type TestStep struct {
 	Commands []string `json:"commands"`

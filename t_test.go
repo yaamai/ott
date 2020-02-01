@@ -20,7 +20,10 @@ func TestParseTFile(t *testing.T) {
 		err error
 	}{
 		{"", TFile{}, nil},
-		{"# comment", TFile{[]Lineable{Comment("# comment")}}, nil},
+		{"# comment", TFile{[]Lineable{&Comment{"# comment"}}}, nil},
+		{"# comment\n# comment", TFile{[]Lineable{&Comment{"# comment"}, &Comment{"# comment"}}}, nil},
+		{"a:", TFile{[]Lineable{&TestCase{Name: "a:"}}}, nil},
+		{"a:\n  $ echo a", TFile{[]Lineable{&TestCase{Name: "a:", TestSteps: []TestStep{TestStep{Commands: []Command{Command("  $ echo a")}}}}}}, nil},
 	}
 	for _, tt := range tests {
 		tFile, err := ParseTFile(strings.NewReader(tt.s))
@@ -28,9 +31,12 @@ func TestParseTFile(t *testing.T) {
 			t.Fatalf("want = %s, got = %s (%s)", tt.err, err, tt.s)
 		}
 
-		if cmp.Equal(tFile, tt.t) {
+		if !cmp.Equal(tFile.Lines, tt.t.Lines) {
 			t.Fatalf("want = %s, got = %s (%s)", tt.t, tFile, tt.s)
 		}
+		// for idx, _ := range(tt.t.Lines) {
+		// 	if cmp.Equal(tt.t.Lines[idx], tFile.Lines[idx])
+		// }
 	}
 }
 

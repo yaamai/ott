@@ -10,7 +10,6 @@ import (
 
 type Lineable interface {
 	Lines() []string
-	Equal(l Lineable) bool
 }
 
 type TFile struct {
@@ -19,34 +18,49 @@ type TFile struct {
 
 var (
 	CommentLineRe = regexp.MustCompile(`^\s*#.*$`)
+	TestCaseLineRe = regexp.MustCompile(`^.*:\s*$`)
+	TestStepLineRe = regexp.MustCompile(`^  [$>] .*$`)
 )
 
 func ParseTFile(stream io.Reader) (TFile, error) {
 	t := TFile{}
 	scanner := bufio.NewScanner(stream)
+	var currentTestCase *TestCase
 	for scanner.Scan() {
 		line := scanner.Text()
 		log.Println(line)
 		if CommentLineRe.MatchString(line) {
-			t.Lines = append(t.Lines, Comment(line))
+			c := Comment{line}
+			t.Lines = append(t.Lines, &c)
+		}
+		if TestCaseLineRe.MatchString(line) {
+			testCase := TestCase{Name: line}
+			t.Lines = append(t.Lines, &testCase)
+			currentTestCase = &testCase
+		}
+		if currentTestCase != nil {
+			if TestStepLineRe.MatchString(line) {
+				currentTestCase.TestSteps = append(currentTestCase.TestSteps, TestStep{Commands: []Command{Command(line)}})
+			}
 		}
 	}
 	return t, nil
 }
 
-type Comment string
-func (c Comment) Lines() []string {
-	return []string{string(c)}
+type Comment struct {
+	Line string
 }
-
-func (c Comment) Equal(l Lineable) bool {
-	return c.Lines() == l.Lines()
+func (c *Comment) Lines() []string {
+	return []string{c.Line}
 }
 
 type TestCase struct {
 	Metadata TestMeta
 	Name string
 	TestSteps []TestStep
+}
+func (t *TestCase) Lines() []string {
+	return []string{t.Name}
 }
 
 type TestMeta struct {}

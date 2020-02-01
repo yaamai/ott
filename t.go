@@ -64,11 +64,13 @@ func ParseTFile(stream io.Reader) (TFile, error) {
 }
 
 func (t *TFile) UnmarshalJSON(b []byte) error {
+	// parse json array only
 	m := []json.RawMessage{}
 	if err := json.Unmarshal(b, &m); err != nil {
 		return err
 	}
 
+	// detect "type" value
 	typeStruct := struct{Type string}{}
 	for _, line := range(m) {
 		err := json.Unmarshal(line, &typeStruct)
@@ -83,6 +85,8 @@ func (t *TFile) UnmarshalJSON(b []byte) error {
 			case "testcase":
 				dst = new(TestCase)
 		}
+
+		// unmarshal to dedicated type
 		err = json.Unmarshal(line, dst)
 		if err != nil {
 			return err

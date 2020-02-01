@@ -44,15 +44,15 @@ func TestTFileUnmarshalJSON(t *testing.T) {
 func TestParseTFile(t *testing.T) {
 	tests := []struct {
 		s    string
-		t TFile
+		t string
 		err error
 	}{
-		{"", TFile{}, nil},
-		{"# comment", TFile{[]Lineable{&Comment{"# comment"}}}, nil},
-		{"# comment\n# comment", TFile{[]Lineable{&Comment{"# comment"}, &Comment{"# comment"}}}, nil},
-		{"a:", TFile{[]Lineable{&TestCase{Name: "a:"}}}, nil},
-		{"a:\n  $ echo a", TFile{[]Lineable{&TestCase{Name: "a:", TestSteps: []*TestStep{&TestStep{Commands: []Command{Command("  $ echo a")}}}}}}, nil},
-		{"a:\n  $ echo a &&\\\n  > echo b", TFile{[]Lineable{&TestCase{Name: "a:", TestSteps: []*TestStep{&TestStep{Commands: []Command{Command("  $ echo a &&\\"), Command("  > echo b")}}}}}}, nil},
+		{"", `[]`, nil},
+		{"# comment", `[{"type": "comment", "string": "# comment"}]`, nil},
+		{"# comment\n# comment", `[{"type": "comment", "string": "# comment"}, {"type": "comment", "string": "# comment"}]`, nil},
+		{"a:", `[{"type": "testcase", "name": "a:"}]`, nil},
+		{"a:\n  $ echo a", `[{"type": "testcase", "name": "a:", "steps": [{"commands": ["  $ echo a"]}]}]`, nil},
+		{"a:\n  $ echo a &&\\\n  > echo b", `[{"type": "testcase", "name": "a:", "steps": [{"commands": ["  $ echo a &&\\", "  > echo b"]}]}]`, nil},
 	}
 	for _, tt := range tests {
 		tFile, err := ParseTFile(strings.NewReader(tt.s))
@@ -60,7 +60,9 @@ func TestParseTFile(t *testing.T) {
 			t.Fatalf("want = %s, got = %s (%s)", tt.err, err, tt.s)
 		}
 
-		if !cmp.Equal(tFile.Lines, tt.t.Lines) {
+		tttFile := TFile{}
+		json.Unmarshal([]byte(tt.t), &tttFile)
+		if !cmp.Equal(tFile.Lines, tttFile.Lines) {
 			t.Fatalf("want = %s, got = %s (%s)", tt.t, tFile, tt.s)
 		}
 	}

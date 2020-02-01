@@ -7,13 +7,6 @@ import (
 	"testing"
 )
 
-/*
-	f, err := os.OpenFile(filename, os.O_RDONLY, 0755)
-	if err != nil {
-		return TFile{}, err
-	}
-	defer f.Close()
-*/
 func TestTFileUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		j   string

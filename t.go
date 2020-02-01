@@ -27,67 +27,109 @@ var (
 	TestStepOutputLineRe   = regexp.MustCompile(`^  [^>$].*$`)
 )
 
+type Context struct{
+	t *TFile
+	testCase *TestCase
+	testStep *TestStep
+	testCaseMeta *TestMeta
+}
+
+func (c Context) isContext(context string) bool {
+	switch context {
+	case "":
+		return true
+	case "testcase-meta":
+		return c.testCaseMeta != nil
+	case "testcase":
+		return c.testCase != nil
+	case "teststep":
+		return c.testCase != nil && c.testStep != nil
+	default:
+		return true
+	}
+}
+
+func parseTestCaseMetaStart(line string, context *Context) error {
+	context.testCaseMeta = &TestMeta{String: line, Meta: map[string]string{}}
+	return nil
+}
+
+func parseTestCaseMeta(line string, context *Context) error {
+	match := MetaDataLineRe.FindStringSubmatch(line)
+	key := match[1]
+	value := match[2]
+	context.testCaseMeta.Meta[key] = value
+	return nil
+}
+
+func parseComment(line string, context *Context) error {
+	c := Comment{line}
+	context.t.Lines = append(context.t.Lines, &c)
+	return nil
+}
+
+func parseTestCaseStart(line string, context *Context) error {
+	testCase := TestCase{Name: line}
+	if context.testCaseMeta != nil {
+		testCase.Metadata = *context.testCaseMeta
+		context.testCaseMeta = nil
+	}
+	context.t.Lines = append(context.t.Lines, &testCase)
+	context.testCase = &testCase
+	return nil
+}
+
+func parseTestStep(line string, context *Context) error {
+	testStep := TestStep{Commands: []string{line}}
+	context.testCase.TestSteps = append(context.testCase.TestSteps, &testStep)
+	context.testStep = &testStep
+	return nil
+}
+
+func parseTestContinueStep(line string, context *Context) error {
+	context.testStep.Commands = append(context.testStep.Commands, line)
+	return nil
+}
+
+func parseTestStepOutput(line string, context *Context) error {
+	context.testStep.Output = append(context.testStep.Output, line)
+	return nil
+}
+
 func ParseTFile(stream io.Reader) (TFile, error) {
-	t := TFile{}
 	scanner := bufio.NewScanner(stream)
-	var currentTestCase *TestCase
-	var currentTestStep *TestStep
-	var currentTestCaseMeta *TestMeta
-	// TODO: introduce Context, function-tables to cleanup code
+
+	context := Context{t: &TFile{}}
+	parseHandler := []struct{
+		contextCondition string
+		lineCondition func(string)bool
+		f func(string, *Context)error
+	}{
+		{"", MetaCommentLineRe.MatchString, parseTestCaseMetaStart},
+		{"testcase-meta", CommentLineRe.MatchString, parseTestCaseMeta},
+		{"", CommentLineRe.MatchString, parseComment},
+		{"", TestCaseLineRe.MatchString, parseTestCaseStart},
+		{"testcase", TestStepLineRe.MatchString, parseTestStep},
+		{"teststep", TestStepContinueLineRe.MatchString, parseTestContinueStep},
+		{"teststep", TestStepOutputLineRe.MatchString, parseTestStepOutput},
+
+	}
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		log.Println(line)
+		// log.Println(line)
 
-		// parse test case meta
-		if MetaCommentLineRe.MatchString(line) {
-			currentTestCaseMeta = &TestMeta{String: line, Meta: map[string]string{}}
-			continue
-		}
-		if currentTestCaseMeta != nil && CommentLineRe.MatchString(line) {
-			match := MetaDataLineRe.FindStringSubmatch(line)
-			key := match[1]
-			value := match[2]
-			currentTestCaseMeta.Meta[key] = value
-			continue
-		}
-
-		// parse normal comment
-		if currentTestCaseMeta == nil && CommentLineRe.MatchString(line) {
-			c := Comment{line}
-			t.Lines = append(t.Lines, &c)
-			continue
-		}
-
-		// detect test case start
-		if TestCaseLineRe.MatchString(line) {
-			testCase := TestCase{Name: line}
-			if currentTestCaseMeta != nil {
-				testCase.Metadata = *currentTestCaseMeta
-				currentTestCaseMeta = nil
-			}
-			t.Lines = append(t.Lines, &testCase)
-			currentTestCase = &testCase
-			continue
-		}
-		if currentTestCase != nil {
-			if TestStepLineRe.MatchString(line) {
-				testStep := TestStep{Commands: []string{line}}
-				currentTestCase.TestSteps = append(currentTestCase.TestSteps, &testStep)
-				currentTestStep = &testStep
-				continue
-			}
-			if currentTestStep != nil {
-				if TestStepContinueLineRe.MatchString(line) {
-					currentTestStep.Commands = append(currentTestStep.Commands, line)
-					continue
-				}
-				if TestStepOutputLineRe.MatchString(line) {
-					currentTestStep.Output = append(currentTestStep.Output, line)
-				}
+		for _, handler := range(parseHandler)  {
+			okContext := context.isContext(handler.contextCondition)
+			okLine := handler.lineCondition(line)
+			// log.Println("Handler#", idx, okContext, okLine)
+			if okContext && okLine {
+				handler.f(line, &context)
+				break
 			}
 		}
 	}
-	return t, nil
+	return *context.t, nil
 }
 
 func (t *TFile) UnmarshalJSON(b []byte) error {
@@ -120,7 +162,7 @@ func (t *TFile) UnmarshalJSON(b []byte) error {
 		}
 		t.Lines = append(t.Lines, dst.(Lineable))
 	}
-	log.Println(m)
+	// log.Println(m)
 
 	return nil
 }

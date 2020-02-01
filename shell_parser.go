@@ -29,7 +29,7 @@ func getLineByPos(buffer []byte, pos int) (int, int) {
 
 func checkMarker(marker, buffer []byte) (bool, []byte) {
 	search_start_pos := 0
-	// search marker in
+	// search marker in buffer 4-times
 	// `echo <marker-echo> \n command <marker>\n <marker-echo> <marker> command-output <marker>`
 	marker_pos := make([]int, 4)
 	for i := 0; i < 4; i++ {
@@ -42,11 +42,6 @@ func checkMarker(marker, buffer []byte) (bool, []byte) {
 		marker_pos[i] = search_start_pos + pos
 		search_start_pos = search_start_pos + pos + len(marker) + 1
 	}
-
-	// get target cmdline
-	// output_start_pos := 0
-	//log.Println(marker_pos)
-	//log.Println(hex.Dump(buffer))
 
 	_, outputStart := getLineByPos(buffer, marker_pos[2])
 	outputEnd, _ := getLineByPos(buffer, marker_pos[3])

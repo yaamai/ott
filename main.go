@@ -1,12 +1,7 @@
 package main
 
 import (
-	//        "io"
 	"log"
-	//        "os/signal"
-	//        "syscall"
-	//        "golang.org/x/crypto/ssh/terminal"
-	//	"strings"
 )
 
 // TODO:

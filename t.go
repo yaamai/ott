@@ -1,13 +1,12 @@
 package main
 
 import (
-	"log"
 	"bufio"
-	"io"
 	"encoding/json"
+	"io"
+	"log"
 	"regexp"
 )
-
 
 type Lineable interface {
 	Type() string
@@ -19,13 +18,13 @@ type TFile struct {
 }
 
 var (
-	CommentLineRe = regexp.MustCompile(`^\s*#.*$`)
-	MetaCommentLineRe = regexp.MustCompile(`^\s*# meta.*$`)
-	MetaDataLineRe = regexp.MustCompile(`^\s*#\s+(.*?):\s*(.*?)$`)
-	TestCaseLineRe = regexp.MustCompile(`^.*:\s*$`)
-	TestStepLineRe = regexp.MustCompile(`^  \$ .*$`)
+	CommentLineRe          = regexp.MustCompile(`^\s*#.*$`)
+	MetaCommentLineRe      = regexp.MustCompile(`^\s*# meta.*$`)
+	MetaDataLineRe         = regexp.MustCompile(`^\s*#\s+(.*?):\s*(.*?)$`)
+	TestCaseLineRe         = regexp.MustCompile(`^.*:\s*$`)
+	TestStepLineRe         = regexp.MustCompile(`^  \$ .*$`)
 	TestStepContinueLineRe = regexp.MustCompile(`^  > .*$`)
-	TestStepOutputLineRe = regexp.MustCompile(`^  [^>$].*$`)
+	TestStepOutputLineRe   = regexp.MustCompile(`^  [^>$].*$`)
 )
 
 func ParseTFile(stream io.Reader) (TFile, error) {
@@ -99,19 +98,19 @@ func (t *TFile) UnmarshalJSON(b []byte) error {
 	}
 
 	// detect "type" value
-	typeStruct := struct{Type string}{}
-	for _, line := range(m) {
+	typeStruct := struct{ Type string }{}
+	for _, line := range m {
 		err := json.Unmarshal(line, &typeStruct)
 		if err != nil {
 			return err
 		}
 
 		var dst interface{}
-		switch (typeStruct.Type) {
-			case "comment":
-				dst = new(Comment)
-			case "testcase":
-				dst = new(TestCase)
+		switch typeStruct.Type {
+		case "comment":
+			dst = new(Comment)
+		case "testcase":
+			dst = new(TestCase)
 		}
 
 		// unmarshal to dedicated type
@@ -129,6 +128,7 @@ func (t *TFile) UnmarshalJSON(b []byte) error {
 type Comment struct {
 	String string `json:"string"`
 }
+
 func (c *Comment) Type() string {
 	return "comment"
 }
@@ -137,10 +137,11 @@ func (c *Comment) Lines() []string {
 }
 
 type TestCase struct {
-	Metadata TestMeta `json:"metadata"`
-	Name string `json:"name"`
+	Metadata  TestMeta    `json:"metadata"`
+	Name      string      `json:"name"`
 	TestSteps []*TestStep `json:"steps"`
 }
+
 func (t *TestCase) Type() string {
 	return "testcase"
 }
@@ -149,11 +150,11 @@ func (t *TestCase) Lines() []string {
 }
 
 type TestMeta struct {
-	String string `json:"string"`
-	Meta map[string]string `json:"meta"`
+	String string            `json:"string"`
+	Meta   map[string]string `json:"meta"`
 }
 
 type TestStep struct {
 	Commands []string `json:"commands"`
-	Output []string `json:"outputs"`
+	Output   []string `json:"outputs"`
 }

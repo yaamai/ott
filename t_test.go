@@ -1,10 +1,10 @@
 package main
 
 import (
-	"testing"
-	"strings"
-	"github.com/google/go-cmp/cmp"
 	"encoding/json"
+	"github.com/google/go-cmp/cmp"
+	"strings"
+	"testing"
 )
 
 /*
@@ -16,15 +16,15 @@ import (
 */
 func TestTFileUnmarshalJSON(t *testing.T) {
 	tests := []struct {
-		j string
-		t TFile
+		j   string
+		t   TFile
 		err error
 	}{
 		{`[]`, TFile{}, nil},
 		{`[{"type": "comment", "string": "aa"}]`, TFile{[]Lineable{&Comment{"aa"}}}, nil},
 		{`[{"type": "testcase", "name": "aa"}]`, TFile{[]Lineable{&TestCase{Name: "aa"}}}, nil},
 		{`[{"type": "testcase", "name": "aa", "steps": [{"commands": ["aa"]}]}]`,
-                 TFile{[]Lineable{&TestCase{Name: "aa", TestSteps: []*TestStep{&TestStep{Commands: []string{"aa"}}}}}}, nil},
+			TFile{[]Lineable{&TestCase{Name: "aa", TestSteps: []*TestStep{&TestStep{Commands: []string{"aa"}}}}}}, nil},
 	}
 	for _, tt := range tests {
 		b := []byte(tt.j)
@@ -43,8 +43,8 @@ func TestTFileUnmarshalJSON(t *testing.T) {
 
 func TestParseTFile(t *testing.T) {
 	tests := []struct {
-		s    string
-		t string
+		s   string
+		t   string
 		err error
 	}{
 		{"", `[]`, nil},
@@ -69,4 +69,3 @@ func TestParseTFile(t *testing.T) {
 		}
 	}
 }
-

@@ -24,7 +24,7 @@ func TestTFileUnmarshalJSON(t *testing.T) {
 		{`[{"type": "comment", "string": "aa"}]`, TFile{[]Lineable{&Comment{"aa"}}}, nil},
 		{`[{"type": "testcase", "name": "aa"}]`, TFile{[]Lineable{&TestCase{Name: "aa"}}}, nil},
 		{`[{"type": "testcase", "name": "aa", "steps": [{"commands": ["aa"]}]}]`,
-                 TFile{[]Lineable{&TestCase{Name: "aa", TestSteps: []*TestStep{&TestStep{Commands: []Command{Command("aa")}}}}}}, nil},
+                 TFile{[]Lineable{&TestCase{Name: "aa", TestSteps: []*TestStep{&TestStep{Commands: []string{"aa"}}}}}}, nil},
 	}
 	for _, tt := range tests {
 		b := []byte(tt.j)

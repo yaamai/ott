@@ -23,6 +23,7 @@ var (
 	TestCaseLineRe = regexp.MustCompile(`^.*:\s*$`)
 	TestStepLineRe = regexp.MustCompile(`^  \$ .*$`)
 	TestStepContinueLineRe = regexp.MustCompile(`^  > .*$`)
+	TestStepOutputLineRe = regexp.MustCompile(`^  [^>$].*$`)
 )
 
 func ParseTFile(stream io.Reader) (TFile, error) {
@@ -47,15 +48,18 @@ func ParseTFile(stream io.Reader) (TFile, error) {
 		}
 		if currentTestCase != nil {
 			if TestStepLineRe.MatchString(line) {
-				testStep := TestStep{Commands: []Command{Command(line)}}
+				testStep := TestStep{Commands: []string{line}}
 				currentTestCase.TestSteps = append(currentTestCase.TestSteps, &testStep)
 				currentTestStep = &testStep
 				continue
 			}
 			if currentTestStep != nil {
 				if TestStepContinueLineRe.MatchString(line) {
-					currentTestStep.Commands = append(currentTestStep.Commands, Command(line))
+					currentTestStep.Commands = append(currentTestStep.Commands, line)
 					continue
+				}
+				if TestStepOutputLineRe.MatchString(line) {
+					currentTestStep.Output = append(currentTestStep.Output, line)
 				}
 			}
 		}
@@ -123,7 +127,6 @@ func (t *TestCase) Lines() []string {
 type TestMeta struct {}
 
 type TestStep struct {
-	Commands []Command `json:"commands"`
+	Commands []string `json:"commands"`
+	Output []string `json:"outputs"`
 }
-
-type Command string

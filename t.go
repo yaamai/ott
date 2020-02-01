@@ -149,6 +149,7 @@ func (t *TestCase) Lines() []string {
 	return []string{t.Name}
 }
 
+// TODO: reduce wrapper struct?
 type TestMeta struct {
 	String string            `json:"string"`
 	Meta   map[string]string `json:"meta"`

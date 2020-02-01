@@ -50,7 +50,7 @@ func getMarkedCommand(cmd string) []byte {
 func (r *Session) ExecuteCommand(cmd string) string {
 	r.ptmx.Write(getMarkedCommand(cmd))
 
-	// TODO: replace by bytes buffer?
+	// make read buffer. (bytes.Buffer.ReadFrom() may block while reading)
 	buffer := make([]byte, 65535)
 	write_pos := 0
 

@@ -4,17 +4,18 @@ import (
 	"log"
 	"bufio"
 	"io"
+	"encoding/json"
 	"regexp"
 )
 
 
 type Lineable interface {
-	// TODO: for marshal/unmarshal, provide type string
+	Type() string
 	Lines() []string
 }
 
 type TFile struct {
-	Lines []Lineable `json:"lines"`
+	Lines []Lineable
 }
 
 var (
@@ -62,8 +63,42 @@ func ParseTFile(stream io.Reader) (TFile, error) {
 	return t, nil
 }
 
+func (t *TFile) UnmarshalJSON(b []byte) error {
+	m := []json.RawMessage{}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return err
+	}
+
+	typeStruct := struct{Type string}{}
+	for _, line := range(m) {
+		err := json.Unmarshal(line, &typeStruct)
+		if err != nil {
+			return err
+		}
+
+		var dst interface{}
+		switch (typeStruct.Type) {
+			case "comment":
+				dst = new(Comment)
+			case "testcase":
+				dst = new(TestCase)
+		}
+		err = json.Unmarshal(line, dst)
+		if err != nil {
+			return err
+		}
+		t.Lines = append(t.Lines, dst.(Lineable))
+	}
+	log.Println(m)
+
+	return nil
+}
+
 type Comment struct {
 	String string `json:"string"`
+}
+func (c *Comment) Type() string {
+	return "comment"
 }
 func (c *Comment) Lines() []string {
 	return []string{c.String}
@@ -73,6 +108,9 @@ type TestCase struct {
 	Metadata TestMeta `json:"metadata"`
 	Name string `json:"name"`
 	TestSteps []*TestStep `json:"steps"`
+}
+func (t *TestCase) Type() string {
+	return "testcase"
 }
 func (t *TestCase) Lines() []string {
 	return []string{t.Name}

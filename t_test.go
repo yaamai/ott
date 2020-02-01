@@ -4,6 +4,7 @@ import (
 	"testing"
 	"strings"
 	"github.com/google/go-cmp/cmp"
+	"encoding/json"
 )
 
 /*
@@ -13,6 +14,33 @@ import (
 	}
 	defer f.Close()
 */
+func TestTFileUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		j string
+		t TFile
+		err error
+	}{
+		{`[]`, TFile{}, nil},
+		{`[{"type": "comment", "string": "aa"}]`, TFile{[]Lineable{&Comment{"aa"}}}, nil},
+		{`[{"type": "testcase", "name": "aa"}]`, TFile{[]Lineable{&TestCase{Name: "aa"}}}, nil},
+		{`[{"type": "testcase", "name": "aa", "steps": [{"commands": ["aa"]}]}]`,
+                 TFile{[]Lineable{&TestCase{Name: "aa", TestSteps: []*TestStep{&TestStep{Commands: []Command{Command("aa")}}}}}}, nil},
+	}
+	for _, tt := range tests {
+		b := []byte(tt.j)
+		tFile := TFile{}
+		err := json.Unmarshal(b, &tFile)
+
+		if err != tt.err {
+			t.Fatalf("want = %s, got = %s (%s)", tt.err, err, tt.j)
+		}
+
+		if !cmp.Equal(tFile.Lines, tt.t.Lines) {
+			t.Fatalf("want = %s, got = %s (%s)", tt.t, tFile, tt.j)
+		}
+	}
+}
+
 func TestParseTFile(t *testing.T) {
 	tests := []struct {
 		s    string
@@ -35,9 +63,6 @@ func TestParseTFile(t *testing.T) {
 		if !cmp.Equal(tFile.Lines, tt.t.Lines) {
 			t.Fatalf("want = %s, got = %s (%s)", tt.t, tFile, tt.s)
 		}
-		// for idx, _ := range(tt.t.Lines) {
-		// 	if cmp.Equal(tt.t.Lines[idx], tFile.Lines[idx])
-		// }
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
-	"log"
 	"regexp"
 )
 
@@ -117,12 +116,10 @@ func ParseTFile(stream io.Reader) (TFile, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		// log.Println(line)
 
 		for _, handler := range(parseHandler)  {
 			okContext := context.isContext(handler.contextCondition)
 			okLine := handler.lineCondition(line)
-			// log.Println("Handler#", idx, okContext, okLine)
 			if okContext && okLine {
 				handler.f(line, &context)
 				break
@@ -162,7 +159,6 @@ func (t *TFile) UnmarshalJSON(b []byte) error {
 		}
 		t.Lines = append(t.Lines, dst.(Lineable))
 	}
-	// log.Println(m)
 
 	return nil
 }
@@ -191,7 +187,6 @@ func (t *TestCase) Lines() []string {
 	return []string{t.Name}
 }
 
-// TODO: reduce wrapper struct?
 type TestMeta struct {
 	String string            `json:"string"`
 	Meta   map[string]string `json:"meta"`

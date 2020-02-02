@@ -2,10 +2,18 @@ package main
 
 import (
 	"log"
+	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
 
 func RunTestStep(s *Session, v *TestStep) {
+    result := s.ExecuteCommand(v.GetCommand())
+    expect := v.GetOutput()
+
+	dmp := diffmatchpatch.New()
+	diffs := dmp.DiffMain(result, expect, false)
+	log.Println(dmp.DiffToDelta(diffs))
+	log.Println(dmp.DiffPrettyText(diffs))
 }
 
 func RunTestCase(s *Session, v *TestCase) {

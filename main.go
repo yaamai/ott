@@ -23,8 +23,9 @@ func main() {
 #  a: 100
 #  b: 100
 echo-a:
-  $ echo a
+  $ echo -e "a\nb"
   a
+  b
 `)
 	t, err := ParseTFile(stream)
 	if err != nil {

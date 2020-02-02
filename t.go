@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
     "log"
+    "strings"
 )
 
 type Lineable interface {
@@ -26,6 +27,8 @@ var (
 	TestStepLineRe         = regexp.MustCompile(`^  \$ .*$`)
 	TestStepContinueLineRe = regexp.MustCompile(`^  > .*$`)
 	TestStepOutputLineRe   = regexp.MustCompile(`^  [^>$].*$`)
+    ParseTestStepCommand = regexp.MustCompile(`^  [>$]\s*(.*)$`)
+    ParseTestStepOutput = regexp.MustCompile(`^  (.*)$`)
 )
 
 type Context struct{
@@ -209,4 +212,24 @@ type TestStep struct {
     EmptyString string `json:"empty_string"`
 	Commands []string `json:"commands"`
 	Output   []string `json:"outputs"`
+}
+
+func (t *TestStep) GetCommand() string {
+    builder := new(strings.Builder)
+    for _, command := range(t.Commands) {
+        matches := ParseTestStepCommand.FindStringSubmatch(command)
+        builder.WriteString(matches[1])
+    }
+
+    return builder.String()
+}
+
+func (t *TestStep) GetOutput() string {
+    builder := new(strings.Builder)
+    for _, output := range(t.Output) {
+        matches := ParseTestStepOutput.FindStringSubmatch(output)
+        builder.WriteString(matches[1])
+    }
+
+    return builder.String()
 }

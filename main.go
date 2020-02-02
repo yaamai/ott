@@ -2,15 +2,8 @@ package main
 
 import (
 	"log"
+	"strings"
 )
-
-// TODO:
-// Session
-// ShellParser
-// Runner
-// TestFile
-// TestCase
-// TestStep
 
 func main() {
 	s, err := NewSession()
@@ -18,6 +11,24 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	r := s.ExecuteCommand("date &&\\\ndate #")
-	log.Println(r)
+	/*
+	f, err := os.OpenFile("", os.O_RDONLY, 0755)
+	if err != nil {
+		return TFile{}, err
+	}
+	defer f.Close()
+	*/
+	stream := strings.NewReader(`
+# meta
+#  a: 100
+#  b: 100
+echo-a:
+  $ echo a
+  a
+`)
+	t, err := ParseTFile(stream)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	Run(s, t)
 }

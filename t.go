@@ -95,7 +95,7 @@ func parseTestStepOutput(line string, context *Context) error {
 	return nil
 }
 
-func ParseTFile(stream io.Reader) (TFile, error) {
+func ParseTFile(stream io.Reader) (*TFile, error) {
 	scanner := bufio.NewScanner(stream)
 
 	context := Context{t: &TFile{}}
@@ -117,6 +117,7 @@ func ParseTFile(stream io.Reader) (TFile, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		// TODO: add error return. (ex. meta w/o test-case)
 		for _, handler := range(parseHandler)  {
 			okContext := context.isContext(handler.contextCondition)
 			okLine := handler.lineCondition(line)
@@ -126,7 +127,7 @@ func ParseTFile(stream io.Reader) (TFile, error) {
 			}
 		}
 	}
-	return *context.t, nil
+	return context.t, nil
 }
 
 func (t *TFile) UnmarshalJSON(b []byte) error {

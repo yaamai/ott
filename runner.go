@@ -7,7 +7,9 @@ import (
 
 
 func RunTestStep(s *Session, v *TestStep) {
-    result := s.ExecuteCommand(v.GetCommand())
+    command := v.GetCommand()
+    log.Println("Running", command)
+    result := s.ExecuteCommand(command)
     expect := v.GetOutput()
 
 	dmp := diffmatchpatch.New()

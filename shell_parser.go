@@ -31,8 +31,8 @@ func checkMarker(marker, buffer []byte) (bool, []byte) {
 	search_start_pos := 0
 	// search marker in buffer 4-times
 	// `command <marker>\n <marker-echo> <marker> command-output <marker>`
-	marker_pos := make([]int, 4)
-	for i := 0; i < 4; i++ {
+	marker_pos := make([]int, 2)
+	for i := 0; i < 2; i++ {
 		pos := bytes.Index(buffer[search_start_pos:], marker)
 		if pos == -1 {
 			// log.Println(i)
@@ -43,7 +43,7 @@ func checkMarker(marker, buffer []byte) (bool, []byte) {
 		search_start_pos = search_start_pos + pos + len(marker) + 1
 	}
 
-	_, outputStart := getLineByPos(buffer, marker_pos[2])
-	outputEnd, _ := getLineByPos(buffer, marker_pos[3])
+	_, outputStart := getLineByPos(buffer, marker_pos[0])
+	outputEnd, _ := getLineByPos(buffer, marker_pos[1])
 	return true, buffer[outputStart+2 : outputEnd-2]
 }

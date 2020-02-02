@@ -26,6 +26,8 @@ echo-a:
   $ echo -e "a\nb"
   a
   b
+  $ echo -e "c\nd"
+  c
 `)
 	t, err := ParseTFile(stream)
 	if err != nil {

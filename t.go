@@ -22,7 +22,7 @@ var (
 	MetaCommentLineRe      = regexp.MustCompile(`^\s*# meta.*$`)
 	MetaDataLineRe         = regexp.MustCompile(`^\s*#\s+(.*?):\s*(.*?)$`)
 	TestCaseLineRe         = regexp.MustCompile(`^.*:\s*$`)
-	EmptyTestStepLineRe         = regexp.MustCompile(`^  $`)
+	EmptyTestStepLineRe         = regexp.MustCompile(`^(  |  # .*)$`)
 	TestStepLineRe         = regexp.MustCompile(`^  \$ .*$`)
 	TestStepContinueLineRe = regexp.MustCompile(`^  > .*$`)
 	TestStepOutputLineRe   = regexp.MustCompile(`^  [^>$].*$`)
@@ -115,10 +115,10 @@ func ParseTFile(stream io.Reader) (*TFile, error) {
 	}{
 		{"", MetaCommentLineRe.MatchString, parseTestCaseMetaStart},
 		{"testcase-meta", CommentLineRe.MatchString, parseTestCaseMeta},
+		{"testcase", EmptyTestStepLineRe.MatchString, parseEmptyCommentTestStep},
 		{"", CommentLineRe.MatchString, parseComment},
 		{"", TestCaseLineRe.MatchString, parseTestCaseStart},
 		{"testcase", TestStepLineRe.MatchString, parseTestStep},
-		{"testcase", EmptyTestStepLineRe.MatchString, parseEmptyCommentTestStep},
 		{"teststep", TestStepContinueLineRe.MatchString, parseTestContinueStep},
 		{"teststep", TestStepOutputLineRe.MatchString, parseTestStepOutput},
 

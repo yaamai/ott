@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"regexp"
-    "log"
+    "go.uber.org/zap"
     "strings"
 )
 
@@ -129,13 +129,13 @@ func ParseTFile(stream io.Reader) (*TFile, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-        log.Println(line)
+        zap.S().Debug(line)
 
 		// TODO: add error return. (ex. meta w/o test-case)
 		for idx, handler := range(parseHandler)  {
 			okContext := context.isContext(handler.contextCondition)
 			okLine := handler.lineCondition(line)
-            log.Println("Handler#", idx, okContext, okLine)
+            zap.S().Debug("Handler#", idx, okContext, okLine)
 			if okContext && okLine {
 				handler.f(line, &context)
 				break

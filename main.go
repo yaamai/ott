@@ -3,9 +3,21 @@ package main
 import (
 	"log"
 	"strings"
+    "go.uber.org/zap"
 )
 
 func main() {
+    logConfig := zap.NewDevelopmentConfig()
+    logConfig.Level.SetLevel(zap.InfoLevel)
+    logger, err := logConfig.Build()
+    if err != nil {
+        log.Fatalln(err)
+    }
+    defer logger.Sync()
+
+    undo := zap.ReplaceGlobals(logger)
+    defer undo()
+
 	s, err := NewSession()
 	if err != nil {
 		log.Fatalln(err)
@@ -27,7 +39,17 @@ echo-a:
   a
   b
   $ echo -e "c\nd"
-  c
+  aaaa
+  d
+date:
+  $ date
+  aaa
+multiline:
+  $ export B=200
+  $ echo a &&\
+  > date &&\
+  > echo $B
+  b
 `)
 	t, err := ParseTFile(stream)
 	if err != nil {

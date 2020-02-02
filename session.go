@@ -4,7 +4,7 @@ import (
 	"github.com/creack/pty"
 	"os"
 	"os/exec"
-    "log"
+    "go.uber.org/zap"
 )
 
 var (
@@ -68,7 +68,7 @@ func (r *Session) ExecuteCommand(cmd string) string {
 	for idx < 100 {
 		l, _ := r.ptmx.Read(buffer[write_pos:])
 		write_pos += l
-        log.Println("out", string(buffer[:write_pos]))
+        zap.S().Debug("shell-out", buffer[:write_pos])
 
 		isCmdFinished, b := checkMarker(MARKER, buffer[:write_pos])
 		if isCmdFinished {

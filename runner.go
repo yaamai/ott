@@ -1,20 +1,20 @@
 package main
 
 import (
-	"log"
 	"fmt"
+    "go.uber.org/zap"
     "github.com/pmezard/go-difflib/difflib"
 )
 
 
 func RunTestStep(s *Session, v *TestStep) {
     command := v.GetCommand()
-    log.Println("Running", command)
+    zap.S().Debug("Running", command)
     result := s.ExecuteCommand(command)
     expect := v.GetOutput()
 
 
-    log.Println("R", result, expect)
+    zap.S().Debug("R", result, expect)
     diff := difflib.UnifiedDiff{
         A:        difflib.SplitLines(expect),
         B:        difflib.SplitLines(result),
@@ -27,9 +27,9 @@ func RunTestStep(s *Session, v *TestStep) {
 }
 
 func RunTestCase(s *Session, v *TestCase) {
-    log.Println(v.Name)
-    log.Println(v.Metadata)
-    log.Println(v.TestSteps)
+    zap.S().Debug(v.Name)
+    zap.S().Debug(v.Metadata)
+    zap.S().Debug(v.TestSteps)
     for _, step := range(v.TestSteps) {
         RunTestStep(s, step)
     }
@@ -40,7 +40,7 @@ func Run(s *Session, t *TFile) {
 
         switch v := line.(type) {
             case *Comment:
-			    log.Println(v)
+			    zap.S().Debug(v)
             case *TestCase:
                 RunTestCase(s, v)
         }

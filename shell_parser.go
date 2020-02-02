@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-    "log"
+    "go.uber.org/zap"
 )
 
 func getLineByPos(buffer []byte, pos int) (int, int) {
@@ -36,10 +36,9 @@ func checkMarker(marker, buffer []byte) (bool, []byte) {
 	for i := 0; i < 2; i++ {
 		pos := bytes.Index(buffer[search_start_pos:], marker)
 		if pos == -1 {
-			// log.Println(i)
 			return false, nil
 		}
-		log.Println("check", search_start_pos, pos)
+		zap.S().Debug("check", search_start_pos, pos)
 		marker_pos[i] = search_start_pos + pos
 		search_start_pos = search_start_pos + pos + len(marker) + 1
 	}

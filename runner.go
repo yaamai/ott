@@ -12,7 +12,9 @@ func RunTestCase(s *Session, v *TestCase) {
     log.Println(v.Name)
     log.Println(v.Metadata)
     log.Println(v.TestSteps)
-    RunTestStep(s, v)
+    for _, step := range(v.TestSteps) {
+        RunTestStep(s, step)
+    }
 }
 
 func Run(s *Session, t *TFile) {

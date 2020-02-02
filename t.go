@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"regexp"
+    "log"
 )
 
 type Lineable interface {
@@ -21,6 +22,7 @@ var (
 	MetaCommentLineRe      = regexp.MustCompile(`^\s*# meta.*$`)
 	MetaDataLineRe         = regexp.MustCompile(`^\s*#\s+(.*?):\s*(.*?)$`)
 	TestCaseLineRe         = regexp.MustCompile(`^.*:\s*$`)
+	EmptyTestStepLineRe         = regexp.MustCompile(`^  $`)
 	TestStepLineRe         = regexp.MustCompile(`^  \$ .*$`)
 	TestStepContinueLineRe = regexp.MustCompile(`^  > .*$`)
 	TestStepOutputLineRe   = regexp.MustCompile(`^  [^>$].*$`)
@@ -95,6 +97,13 @@ func parseTestStepOutput(line string, context *Context) error {
 	return nil
 }
 
+func parseEmptyCommentTestStep(line string, context *Context) error {
+	testStep := TestStep{EmptyString: line}
+	context.testCase.TestSteps = append(context.testCase.TestSteps, &testStep)
+	context.testStep = nil
+	return nil
+}
+
 func ParseTFile(stream io.Reader) (*TFile, error) {
 	scanner := bufio.NewScanner(stream)
 
@@ -109,6 +118,7 @@ func ParseTFile(stream io.Reader) (*TFile, error) {
 		{"", CommentLineRe.MatchString, parseComment},
 		{"", TestCaseLineRe.MatchString, parseTestCaseStart},
 		{"testcase", TestStepLineRe.MatchString, parseTestStep},
+		{"testcase", EmptyTestStepLineRe.MatchString, parseEmptyCommentTestStep},
 		{"teststep", TestStepContinueLineRe.MatchString, parseTestContinueStep},
 		{"teststep", TestStepOutputLineRe.MatchString, parseTestStepOutput},
 
@@ -116,11 +126,13 @@ func ParseTFile(stream io.Reader) (*TFile, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
+        log.Println(line)
 
 		// TODO: add error return. (ex. meta w/o test-case)
-		for _, handler := range(parseHandler)  {
+		for idx, handler := range(parseHandler)  {
 			okContext := context.isContext(handler.contextCondition)
 			okLine := handler.lineCondition(line)
+            log.Println("Handler#", idx, okContext, okLine)
 			if okContext && okLine {
 				handler.f(line, &context)
 				break
@@ -194,6 +206,7 @@ type TestMeta struct {
 }
 
 type TestStep struct {
+    EmptyString string `json:"empty_string"`
 	Commands []string `json:"commands"`
 	Output   []string `json:"outputs"`
 }

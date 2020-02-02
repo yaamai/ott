@@ -48,6 +48,7 @@ func TestParseTFile(t *testing.T) {
 		{"a:\n  $ echo a &&\\\n  > echo b", `[{"type": "testcase", "name": "a:", "steps": [{"commands": ["  $ echo a &&\\", "  > echo b"]}]}]`, nil},
 		{"a:\n  $ echo a &&\\\n  > echo b\n  a\n  b", `[{"type": "testcase", "name": "a:", "steps": [{"commands": ["  $ echo a &&\\", "  > echo b"], "outputs": ["  a", "  b"]}]}]`, nil},
 		{"# meta:\n#  a: 100\na:\n  $ echo a &&\\\n  > echo b\n  a\n  b", `[{"type": "testcase", "name": "a:", "metadata": {"string": "# meta:", "meta": {"a": "100"}}, "steps": [{"commands": ["  $ echo a &&\\", "  > echo b"], "outputs": ["  a", "  b"]}]}]`, nil},
+		{"a:\n  \n  $ echo a", `[{"type": "testcase", "name": "a:", "steps": [{"empty_string": "  "}, {"commands": ["  $ echo a"]}]}]`, nil},
 	}
 	for _, tt := range tests {
 		tFile, err := ParseTFile(strings.NewReader(tt.s))

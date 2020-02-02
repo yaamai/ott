@@ -229,6 +229,7 @@ func (t *TestStep) GetOutput() string {
     for _, output := range(t.Output) {
         matches := ParseTestStepOutput.FindStringSubmatch(output)
         builder.WriteString(matches[1])
+        builder.WriteString("\r\n")
     }
 
     return builder.String()

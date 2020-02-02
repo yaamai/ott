@@ -2,7 +2,8 @@ package main
 
 import (
 	"log"
-	"github.com/sergi/go-diff/diffmatchpatch"
+	"fmt"
+    "github.com/pmezard/go-difflib/difflib"
 )
 
 
@@ -12,10 +13,17 @@ func RunTestStep(s *Session, v *TestStep) {
     result := s.ExecuteCommand(command)
     expect := v.GetOutput()
 
-	dmp := diffmatchpatch.New()
-	diffs := dmp.DiffMain(result, expect, false)
-	log.Println(dmp.DiffToDelta(diffs))
-	log.Println(dmp.DiffPrettyText(diffs))
+
+    log.Println("R", result, expect)
+    diff := difflib.UnifiedDiff{
+        A:        difflib.SplitLines(expect),
+        B:        difflib.SplitLines(result),
+        FromFile: "Expected",
+        ToFile:   "Output",
+        Context:  3,
+    }
+    text, _ := difflib.GetUnifiedDiffString(diff)
+    fmt.Printf(text)
 }
 
 func RunTestCase(s *Session, v *TestCase) {

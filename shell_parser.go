@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+    "log"
 )
 
 func getLineByPos(buffer []byte, pos int) (int, int) {
@@ -38,12 +39,12 @@ func checkMarker(marker, buffer []byte) (bool, []byte) {
 			// log.Println(i)
 			return false, nil
 		}
-		// log.Println("check", search_start_pos, pos)
+		log.Println("check", search_start_pos, pos)
 		marker_pos[i] = search_start_pos + pos
 		search_start_pos = search_start_pos + pos + len(marker) + 1
 	}
 
 	_, outputStart := getLineByPos(buffer, marker_pos[0])
 	outputEnd, _ := getLineByPos(buffer, marker_pos[1])
-	return true, buffer[outputStart+2 : outputEnd-2]
+	return true, buffer[outputStart+2 : outputEnd]
 }

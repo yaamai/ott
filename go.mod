@@ -9,5 +9,5 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sergi/go-diff v1.1.0 // indirect
 	go.uber.org/zap v1.13.0
-	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d // indirect
+	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d
 )

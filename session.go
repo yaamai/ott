@@ -7,6 +7,8 @@ import (
 	"os/exec"
     "go.uber.org/zap"
     "bytes"
+    "errors"
+    "time"
 )
 
 var (
@@ -23,17 +25,15 @@ type Session struct {
 
 
 func readPrompt(buffer *LockedBuffer) []byte {
-    // TODO: add timeout and break
-    for {
+    for retry := 0; retry < 10; retry += 1 {
+
         buf := buffer.Bytes()
         promptLen := len(buf) / 2
-        // log.Println("promptlens", promptLen, buf[:promptLen])
-        if promptLen < 1 {
-            continue
-        }
-        if bytes.Equal(buf[:promptLen], buf[promptLen:]) {
+        if promptLen > 1 && bytes.Equal(buf[:promptLen], buf[promptLen:]) {
             return buf[:promptLen]
         }
+
+        time.Sleep(1*time.Millisecond)
     }
     return nil
 }
@@ -62,6 +62,9 @@ func NewSession() (*Session, error) {
     go r.Reader()
     ptmx.Write(LF)
     prompt := readPrompt(buffer)
+    if prompt == nil {
+        return nil, errors.New("prompt wait timeout")
+    }
     r.prompt = prompt
 
 	return &r, nil
@@ -107,6 +110,9 @@ func getMarkedCommand(cmd string) []byte {
 func (s *Session) ExecuteCommand(cmd string) string {
     s.buffer.Reset()
 	s.ptmx.Write(getMarkedCommand(cmd))
-    output := s.buffer.ReadToPattern(MARKER)
+    output, err := s.buffer.ReadToPattern(MARKER)
+    if err != nil {
+        return ""
+    }
     return string(output)
 }

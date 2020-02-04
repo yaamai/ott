@@ -3,6 +3,8 @@ package main
 import (
     "bytes"
     "sync"
+    "errors"
+    "time"
 )
 
 
@@ -42,16 +44,24 @@ func (b *LockedBuffer) Write(p []byte) (n int, err error) {
 }
 
 // search pattern and copy-and-read data and return
-func (b *LockedBuffer) ReadToPattern(pattern []byte) []byte {
-    for {
-        // TODO: timeout
+func (b *LockedBuffer) ReadToPattern(pattern []byte) ([]byte, error) {
+    for retry := 0; retry < 100; retry += 1 {
         pos := bytes.Index(b.Bytes(), pattern)
         if pos != -1 {
             buffer := make([]byte, pos)
-            b.Read(buffer)
-            // TODO: handle read err, len
-            return buffer
+            l, err := b.Read(buffer)
+            if err != nil {
+                return nil, err
+            }
+            if l != pos {
+                return nil, errors.New("failed to read from buffer")
+            }
+            return buffer, nil
         }
+
+        time.Sleep(10*time.Millisecond)
     }
+
+    return nil, errors.New("timeout waiting pattern present")
 }
 

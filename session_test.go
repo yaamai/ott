@@ -38,7 +38,6 @@ func TestSessionInitialize(t *testing.T) {
     }
 }
 
-/*
 func TestExecuteCommand(t *testing.T) {
     sess, err := NewSession()
     if err != nil {
@@ -50,7 +49,14 @@ func TestExecuteCommand(t *testing.T) {
     if output != "a\n" {
         t.Fatalf("want =%s, got = %s", "a", output)
     }
+
+    output = sess.ExecuteCommand("echo a")
+    fmt.Println([]byte(output))
+    if output != "a\n" {
+        t.Fatalf("want =%s, got = %s", "a", output)
+    }
 }
+
 
 func TestExecuteCommandStability(t *testing.T) {
     sess, err := NewSession()
@@ -66,4 +72,3 @@ func TestExecuteCommandStability(t *testing.T) {
         }
     }
 }
-*/

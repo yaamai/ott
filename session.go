@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	MARKER = []byte("### OTT-OTT ###")
+	MARKER = []byte("###OTT-OTT###")
 	LF     = []byte("\n")
 	CRLF   = []byte("\r\n")
 	SPACE  = []byte(" ")
@@ -30,6 +30,19 @@ func (b *LockedBuffer) Bytes() []byte {
     defer b.m.Unlock()
     return b.b.Bytes()
 }
+
+func (b *LockedBuffer) Reset() {
+    b.m.Lock()
+    defer b.m.Unlock()
+    b.b.Reset()
+}
+
+func (b *LockedBuffer) Read(p []byte) (n int, err error) {
+    b.m.Lock()
+    defer b.m.Unlock()
+    return b.b.Read(p)
+}
+
 func (b *LockedBuffer) Write(p []byte) (n int, err error) {
     b.m.Lock()
     defer b.m.Unlock()
@@ -78,7 +91,7 @@ func NewSession() (*Session, error) {
         // TODO: escape infinit for loop
         for {
             l, err := ptmx.Read(b)
-            log.Println("for go read from pty", l, err, b[:l])
+            log.Println("for go read from pty", l, err, b[:l], string(b[:l]))
             if err != nil {
                 break
             }
@@ -147,8 +160,11 @@ func getMarkedCommand(cmd string) []byte {
 
 	result := make([]byte, 0, len(cmdBytes)+2)
 	result = append(result, cmdBytes...)
+	result = append(result, []byte("; PS1=")...)
+	result = append(result, MARKER...)
+	result = append(result, LF...) // generate marker prompt
+	result = append(result, []byte("PS1=$ORIG_PS1")...)
 	result = append(result, LF...)
-	result = append(result, LF...) // generate empty prompt
 
 	return result
 }
@@ -162,71 +178,86 @@ func (r *Session) StripEmptyPrompt(buffer, prompt []byte) []byte {
     return buffer[:pos]
 }
 
-func (r *Session) ExecuteCommand(cmd string) string {
-
-    log.Println("aa")
-	go r.ptmx.Write(getMarkedCommand(cmd))
-    log.Println("aa")
-	go r.ptmx.Write(getMarkedCommand(cmd))
-    /*
+func ReadOutput(buffer *LockedBuffer) []byte {
     for {
-    buffer := make([]byte, 128)
-    l, err := r.ptmx.Read(buffer)
-    log.Println("Read from pty", l, err, buffer[:l])
-    }
-    */
-
-    for {}
-    /*
-    prompt := r.SkipPrompt()
-
-    // send command
-
-    // read output
-	buffer := make([]byte, 65535)
-    l, err := r.ptmx.Read(buffer)
-    log.Println("Read from pty", l, err, buffer[:l])
-    if err != nil {
-        return ""
-    }
-
-    r.SkipPrompt()
-    // strip empty prompt&line
-    output := r.StripEmptyPrompt(buffer[:l], prompt)
-    return string(output)
-    */
-    return ""
-	// write_pos := 0
-    // for {
-	// 	write_pos += l
-    // }
-    // return string(buffer[:write_pos])
-    /*
-    for {
-	    r.ptmx.Write(getMarkedCommand(cmd))
-	    r.ptmx.Write(getMarkedCommand(cmd))
-
-        l, err := r.buffer.ReadString(LF[0])
-        time.Sleep(100 * time.Millisecond)
-        log.Println("Read from buffer", l, "err=", err)
-        if err == nil {
-            break
+        log.Println(string(buffer.Bytes()))
+        pos := bytes.Index(buffer.Bytes(), MARKER)
+        if pos == -1 {
+            continue
         }
+        log.Println("marker pos", pos)
+
+        b := make([]byte, pos)
+        buffer.Read(b)
+
+        return b
     }
-	// make read buffer. (bytes.Buffer.ReadFrom() may block while reading EOF)
-	write_pos := 0
+}
 
-	idx := 0
-	for idx < 100 {
-		l, _ := r.ptmx.Read(buffer[write_pos:])
-        zap.S().Debug("shell-out", buffer[:write_pos])
+func (r *Session) ExecuteCommand(cmd string) string {
+    r.buffer.Reset()
+	r.ptmx.Write(getMarkedCommand(cmd))
+    return string(ReadOutput(r.buffer))
 
-		isCmdFinished, b := checkMarker(MARKER, buffer[:write_pos])
-		if isCmdFinished {
-			return string(b)
-		}
-	}
-    */
+    // log.Println("aa")
+	// go r.ptmx.Write(getMarkedCommand(cmd))
+    // log.Println("aa")
+	// go r.ptmx.Write(getMarkedCommand(cmd))
+    // for {
+    // buffer := make([]byte, 128)
+    // l, err := r.ptmx.Read(buffer)
+    // log.Println("Read from pty", l, err, buffer[:l])
+    // }
+    // */
 
-	// return ""
+    // for {}
+    // prompt := r.SkipPrompt()
+
+    // // send command
+
+    // // read output
+	// buffer := make([]byte, 65535)
+    // l, err := r.ptmx.Read(buffer)
+    // log.Println("Read from pty", l, err, buffer[:l])
+    // if err != nil {
+    //     return ""
+    // }
+
+    // r.SkipPrompt()
+    // // strip empty prompt&line
+    // output := r.StripEmptyPrompt(buffer[:l], prompt)
+    // return string(output)
+    // */
+    // return ""
+	// // write_pos := 0
+    // // for {
+	// // 	write_pos += l
+    // // }
+    // // return string(buffer[:write_pos])
+    // for {
+	//     r.ptmx.Write(getMarkedCommand(cmd))
+	//     r.ptmx.Write(getMarkedCommand(cmd))
+
+    //     l, err := r.buffer.ReadString(LF[0])
+    //     time.Sleep(100 * time.Millisecond)
+    //     log.Println("Read from buffer", l, "err=", err)
+    //     if err == nil {
+    //         break
+    //     }
+    // }
+	// // make read buffer. (bytes.Buffer.ReadFrom() may block while reading EOF)
+	// write_pos := 0
+
+	// idx := 0
+	// for idx < 100 {
+	// 	l, _ := r.ptmx.Read(buffer[write_pos:])
+    //     zap.S().Debug("shell-out", buffer[:write_pos])
+
+	// 	isCmdFinished, b := checkMarker(MARKER, buffer[:write_pos])
+	// 	if isCmdFinished {
+	// 		return string(b)
+	// 	}
+	// }
+
+	// // return ""
 }

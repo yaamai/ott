@@ -39,7 +39,7 @@ func TestCheckMarker(t *testing.T) {
 		o    []byte
 	}{
 		{[]byte("#"), []byte(""), false, []byte("")},
-		{[]byte("#"), []byte("#\r\n#\r\n#\r\naaa\r\naaa\r\n#"), true, []byte("aaa\r\naaa")},
+		{[]byte("#"), []byte("#\r\naaa\r\naaa\r\n#"), true, []byte("aaa\r\naaa\r\n")},
 	}
 	for _, tt := range tests {
 		found, out := checkMarker(tt.m, tt.b)

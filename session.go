@@ -2,9 +2,11 @@ package main
 
 import (
 	"github.com/creack/pty"
+//    "io"
 	"os"
 	"os/exec"
     "go.uber.org/zap"
+    "bytes"
 )
 
 var (
@@ -15,6 +17,7 @@ var (
 
 type Session struct {
 	ptmx *os.File
+    buffer *bytes.Buffer
 }
 
 func NewSession() (*Session, error) {
@@ -25,14 +28,29 @@ func NewSession() (*Session, error) {
 		return nil, err
 	}
 
-    // dirty fix to echo-back on first terminal read
-    ptmx.Write([]byte(":\n"))
-	buffer := make([]byte, 65535)
-    ptmx.Read(buffer)
-    ptmx.Read(buffer)
-    ptmx.Read(buffer)
+    buffer := new(bytes.Buffer)
+    buffer.Grow(65535)
+    go func() {
+        zap.S().Debug("start buffering")
+        for {
+            b := make([]byte, 1024)
+            l, _ := ptmx.Read(b)
+            buffer.Write(b[:l])
+            zap.S().Debug(b[:l])
+            // io.Copy(buffer, ptmx)
+        //     l, err := buffer.ReadFrom(ptmx)
+            zap.S().Debug("bytes.Buffer")
+        }
+    }()
 
-	r := Session{ptmx: ptmx}
+    // dirty fix to echo-back on first terminal read
+    // ptmx.Write([]byte(":\n"))
+	// buffer := make([]byte, 65535)
+    // ptmx.Read(buffer)
+    // ptmx.Read(buffer)
+    // ptmx.Read(buffer)
+
+	r := Session{ptmx: ptmx, buffer: buffer}
 
 	return &r, nil
 }
@@ -60,8 +78,16 @@ func getMarkedCommand(cmd string) []byte {
 func (r *Session) ExecuteCommand(cmd string) string {
 	r.ptmx.Write(getMarkedCommand(cmd))
 
+    for {
+        s, err := r.buffer.ReadString(LF[0])
+        zap.S().Debug("ReadString, ", s, err)
+        if err != nil {
+            break
+        }
+    }
+
 	// make read buffer. (bytes.Buffer.ReadFrom() may block while reading)
-	buffer := make([]byte, 65535)
+    /*
 	write_pos := 0
 
 	idx := 0
@@ -75,6 +101,6 @@ func (r *Session) ExecuteCommand(cmd string) string {
 			return string(b)
 		}
 	}
-
+    */
 	return ""
 }

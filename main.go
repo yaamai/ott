@@ -8,7 +8,7 @@ import (
 
 func main() {
     logConfig := zap.NewDevelopmentConfig()
-    logConfig.Level.SetLevel(zap.InfoLevel)
+    logConfig.Level.SetLevel(zap.DebugLevel)
     logger, err := logConfig.Build()
     if err != nil {
         log.Fatalln(err)

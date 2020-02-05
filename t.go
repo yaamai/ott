@@ -3,10 +3,10 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"go.uber.org/zap"
 	"io"
 	"regexp"
-    "go.uber.org/zap"
-    "strings"
+	"strings"
 )
 
 type Lineable interface {
@@ -23,18 +23,18 @@ var (
 	MetaCommentLineRe      = regexp.MustCompile(`^\s*# meta.*$`)
 	MetaDataLineRe         = regexp.MustCompile(`^\s*#\s+(.*?):\s*(.*?)$`)
 	TestCaseLineRe         = regexp.MustCompile(`^.*:\s*$`)
-	EmptyTestStepLineRe         = regexp.MustCompile(`^(  |  # .*)$`)
+	EmptyTestStepLineRe    = regexp.MustCompile(`^(  |  # .*)$`)
 	TestStepLineRe         = regexp.MustCompile(`^  \$ .*$`)
 	TestStepContinueLineRe = regexp.MustCompile(`^  > .*$`)
 	TestStepOutputLineRe   = regexp.MustCompile(`^  [^>$].*$`)
-    ParseTestStepCommand = regexp.MustCompile(`^  [>$]\s*(.*)$`)
-    ParseTestStepOutput = regexp.MustCompile(`^  (.*)$`)
+	ParseTestStepCommand   = regexp.MustCompile(`^  [>$]\s*(.*)$`)
+	ParseTestStepOutput    = regexp.MustCompile(`^  (.*)$`)
 )
 
-type Context struct{
-	t *TFile
-	testCase *TestCase
-	testStep *TestStep
+type Context struct {
+	t            *TFile
+	testCase     *TestCase
+	testStep     *TestStep
 	testCaseMeta *TestMeta
 }
 
@@ -111,10 +111,10 @@ func ParseTFile(stream io.Reader) (*TFile, error) {
 	scanner := bufio.NewScanner(stream)
 
 	context := Context{t: &TFile{}}
-	parseHandler := []struct{
+	parseHandler := []struct {
 		contextCondition string
-		lineCondition func(string)bool
-		f func(string, *Context)error
+		lineCondition    func(string) bool
+		f                func(string, *Context) error
 	}{
 		{"", MetaCommentLineRe.MatchString, parseTestCaseMetaStart},
 		{"testcase-meta", CommentLineRe.MatchString, parseTestCaseMeta},
@@ -124,18 +124,17 @@ func ParseTFile(stream io.Reader) (*TFile, error) {
 		{"testcase", TestStepLineRe.MatchString, parseTestStep},
 		{"teststep", TestStepContinueLineRe.MatchString, parseTestContinueStep},
 		{"teststep", TestStepOutputLineRe.MatchString, parseTestStepOutput},
-
 	}
 
 	for scanner.Scan() {
 		line := scanner.Text()
-        zap.S().Debug(line)
+		zap.S().Debug(line)
 
 		// TODO: add error return. (ex. meta w/o test-case)
-		for idx, handler := range(parseHandler)  {
+		for idx, handler := range parseHandler {
 			okContext := context.isContext(handler.contextCondition)
 			okLine := handler.lineCondition(line)
-            zap.S().Debug("Handler#", idx, okContext, okLine)
+			zap.S().Debug("Handler#", idx, okContext, okLine)
 			if okContext && okLine {
 				handler.f(line, &context)
 				break
@@ -209,28 +208,29 @@ type TestMeta struct {
 }
 
 type TestStep struct {
-    EmptyString string `json:"empty_string"`
-	Commands []string `json:"commands"`
-	Output   []string `json:"outputs"`
+	EmptyString string   `json:"empty_string"`
+	Commands    []string `json:"commands"`
+	Output      []string `json:"outputs"`
+	Expected    []string `json:"expected"`
 }
 
 func (t *TestStep) GetCommand() string {
-    builder := new(strings.Builder)
-    for _, command := range(t.Commands) {
-        matches := ParseTestStepCommand.FindStringSubmatch(command)
-        builder.WriteString(matches[1])
-    }
+	builder := new(strings.Builder)
+	for _, command := range t.Commands {
+		matches := ParseTestStepCommand.FindStringSubmatch(command)
+		builder.WriteString(matches[1])
+	}
 
-    return builder.String()
+	return builder.String()
 }
 
 func (t *TestStep) GetOutput() string {
-    builder := new(strings.Builder)
-    for _, output := range(t.Output) {
-        matches := ParseTestStepOutput.FindStringSubmatch(output)
-        builder.WriteString(matches[1])
-        builder.WriteString("\r\n")
-    }
+	builder := new(strings.Builder)
+	for _, output := range t.Output {
+		matches := ParseTestStepOutput.FindStringSubmatch(output)
+		builder.WriteString(matches[1])
+		builder.WriteString("\n")
+	}
 
-    return builder.String()
+	return builder.String()
 }

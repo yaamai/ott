@@ -1,22 +1,22 @@
 package main
 
 import (
+	"go.uber.org/zap"
 	"log"
 	"strings"
-    "go.uber.org/zap"
 )
 
 func main() {
-    logConfig := zap.NewDevelopmentConfig()
-    logConfig.Level.SetLevel(zap.InfoLevel)
-    logger, err := logConfig.Build()
-    if err != nil {
-        log.Fatalln(err)
-    }
-    defer logger.Sync()
+	logConfig := zap.NewDevelopmentConfig()
+	logConfig.Level.SetLevel(zap.InfoLevel)
+	logger, err := logConfig.Build()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer logger.Sync()
 
-    undo := zap.ReplaceGlobals(logger)
-    defer undo()
+	undo := zap.ReplaceGlobals(logger)
+	defer undo()
 
 	s, err := NewSession()
 	if err != nil {
@@ -24,11 +24,11 @@ func main() {
 	}
 
 	/*
-	f, err := os.OpenFile("", os.O_RDONLY, 0755)
-	if err != nil {
-		return TFile{}, err
-	}
-	defer f.Close()
+		f, err := os.OpenFile("", os.O_RDONLY, 0755)
+		if err != nil {
+			return TFile{}, err
+		}
+		defer f.Close()
 	*/
 	stream := strings.NewReader(`
 # meta

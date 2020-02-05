@@ -9,6 +9,44 @@ import (
 	"strings"
 )
 
+/*
+# comment
+  # comment
+test-case-name: #hoge
+  # aaaa
+  $ command # aaa
+  command
+  $ echo a &&\
+  > echo b
+  a
+  b
+
+- each element is lineable
+- test-case-name in unique in a file
+
+File = []Lineable
+Lineable
+  Type()
+  Line()
+
+Comment("# comment")
+Comment("  # comment")
+TestCase("test-case-name:", " #hoge")
+Comment("test-case-name:", "# aaaa")
+Command("test-case-name:", "$ command # aaa")
+Output("test-case-name:", "$ command # aaa")
+TestCaseCommandContinue("test-case-name:", "# aaaa")
+Command("test-case-name:", "$ echo a &&\")
+ContinueCommand("test-case-name:", "> echo b")
+ExpectedOutput("test-case-name:", "a")
+ExpectedOutput("test-case-name:", "b")
+
+Tests
+  Metadata map[string]string
+  map[string]TestCase
+  
+*/
+
 type Lineable interface {
 	Type() string
 	Lines() []string

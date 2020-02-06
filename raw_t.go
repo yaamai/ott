@@ -45,11 +45,8 @@ func parseCommentLine(line string, context *ParseRawTContext) error {
 }
 
 func parseMetaCommentLine(line string, context *ParseRawTContext) error {
-	c := MetaCommentLine{line, nil}
+	c := MetaCommentLine{line}
 
-	if context.metaCommentLine != nil {
-		c.parent = context.metaCommentLine
-	}
 	context.t = append(context.t, &c)
 	context.metaCommentLine = &c
 	return nil
@@ -63,26 +60,26 @@ func parseTestCaseLine(line string, context *ParseRawTContext) error {
 }
 
 func parseTestCaseCommentLine(line string, context *ParseRawTContext) error {
-	c := TestCaseCommentLine{line, context.testCaseLine}
+	c := TestCaseCommentLine{line}
 	context.t = append(context.t, &c)
 	return nil
 }
 
 func parseCommandLine(line string, context *ParseRawTContext) error {
-	c := CommandLine{line, context.testCaseLine}
+	c := CommandLine{line}
 	context.t = append(context.t, &c)
 	context.commandLine = &c
 	return nil
 }
 
 func parseOutputLine(line string, context *ParseRawTContext) error {
-	c := OutputLine{line, context.commandLine}
+	c := OutputLine{line}
 	context.t = append(context.t, &c)
 	return nil
 }
 
 func parseCommandContinueLine(line string, context *ParseRawTContext) error {
-	c := CommandContinueLine{line, context.commandLine}
+	c := CommandContinueLine{line}
 	context.t = append(context.t, &c)
 	return nil
 }

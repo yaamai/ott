@@ -19,20 +19,20 @@ func TestNewFromRawT(t *testing.T) {
 			TestFile{Comments: []string{"#a"}},
 		},
 		{
-			[]Line{&MetaCommentLine{"# meta:", nil}},
+			[]Line{&MetaCommentLine{"# meta:"}},
 			TestFile{},
 		},
 		{
 			[]Line{
-				&MetaCommentLine{"# meta:", nil},
-				&MetaCommentLine{"#  a: 100", nil},
+				&MetaCommentLine{"# meta:"},
+				&MetaCommentLine{"#  a: 100"},
 			},
 			TestFile{},
 		},
 		{
 			[]Line{
-				&MetaCommentLine{"# meta:", nil},
-				&MetaCommentLine{"#  a: 100", nil},
+				&MetaCommentLine{"# meta:"},
+				&MetaCommentLine{"#  a: 100"},
 				&TestCaseLine{"aaaa:"},
 			},
 			TestFile{
@@ -44,7 +44,7 @@ func TestNewFromRawT(t *testing.T) {
 		{
 			[]Line{
 				&TestCaseLine{"aaaa:"},
-				&TestCaseCommentLine{"  # a", nil},
+				&TestCaseCommentLine{"  # a"},
 			},
 			TestFile{
 				Tests: []TestCase{
@@ -55,7 +55,7 @@ func TestNewFromRawT(t *testing.T) {
 		{
 			[]Line{
 				&TestCaseLine{"aaaa:"},
-				&CommandLine{"  $ a", nil},
+				&CommandLine{"  $ a"},
 			},
 			TestFile{
 				Tests: []TestCase{
@@ -70,9 +70,9 @@ func TestNewFromRawT(t *testing.T) {
 		{
 			[]Line{
 				&TestCaseLine{"aaaa:"},
-				&CommandLine{"  $ a", nil},
+				&CommandLine{"  $ a"},
 				&TestCaseLine{"bbbb:"},
-				&CommandLine{"  $ b", nil},
+				&CommandLine{"  $ b"},
 			},
 			TestFile{
 				Tests: []TestCase{
@@ -92,8 +92,8 @@ func TestNewFromRawT(t *testing.T) {
 		{
 			[]Line{
 				&TestCaseLine{"aaaa:"},
-				&CommandLine{"  $ a", nil},
-				&OutputLine{"  a", nil},
+				&CommandLine{"  $ a"},
+				&OutputLine{"  a"},
 			},
 			TestFile{
 				Tests: []TestCase{
@@ -108,10 +108,10 @@ func TestNewFromRawT(t *testing.T) {
 		{
 			[]Line{
 				&TestCaseLine{"aaaa:"},
-				&CommandLine{"  $ a", nil},
-				&OutputLine{"  a", nil},
-				&CommandLine{"  $ b", nil},
-				&CommandContinueLine{"  > c", nil},
+				&CommandLine{"  $ a"},
+				&OutputLine{"  a"},
+				&CommandLine{"  $ b"},
+				&CommandContinueLine{"  > c"},
 			},
 			TestFile{
 				Tests: []TestCase{
@@ -127,12 +127,12 @@ func TestNewFromRawT(t *testing.T) {
 		{
 			[]Line{
 				&TestCaseLine{"aaaa:"},
-				&CommandLine{"  $ a", nil},
-				&OutputLine{"  a", nil},
-				&CommandLine{"  $ b", nil},
-				&CommandContinueLine{"  > c", nil},
-				&OutputLine{"  b", nil},
-				&OutputLine{"  c", nil},
+				&CommandLine{"  $ a"},
+				&OutputLine{"  a"},
+				&CommandLine{"  $ b"},
+				&CommandContinueLine{"  > c"},
+				&OutputLine{"  b"},
+				&OutputLine{"  c"},
 			},
 			TestFile{
 				Tests: []TestCase{

@@ -44,7 +44,7 @@ ExpectedOutput("test-case-name:", "b")
 Tests
   Metadata map[string]string
   map[string]TestCase
-  
+
 */
 
 type Lineable interface {

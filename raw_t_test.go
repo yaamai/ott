@@ -1,9 +1,9 @@
 package main
 
 import (
-	"testing"
 	"github.com/google/go-cmp/cmp"
 	"strings"
+	"testing"
 )
 
 func TestRawTParse(t *testing.T) {
@@ -24,7 +24,7 @@ func TestRawTParse(t *testing.T) {
 		{"aaaa:\n  $ a\n  a\n  $ b\n  > c\n  b\n  c", []Line{&TestCaseLine{"aaaa:"}, &CommandLine{"  $ a", nil}, &OutputLine{"  a", nil}, &CommandLine{"  $ b", nil}, &CommandContinueLine{"  > c", nil}, &OutputLine{"  b", nil}, &OutputLine{"  c", nil}}, nil},
 	}
 	for _, tt := range tests {
-        lines, err := ParseRawT(strings.NewReader(tt.t))
+		lines, err := ParseRawT(strings.NewReader(tt.t))
 
 		if err != tt.err {
 			t.Fatalf("want = %s, got = %s (%s)", tt.err, err, tt.t)

@@ -1,31 +1,132 @@
 package main
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewFromRawT(t *testing.T) {
 	tests := []struct {
-		l   []Line
-		t   TestFile
+		l []Line
+		t TestFile
 	}{
-		{[]Line{}, TestFile{}},
-		{[]Line{&CommentLine{"#a"}}, TestFile{Comments: []string{"#a"}}},
-		{[]Line{&MetaCommentLine{"# meta:", nil}}, TestFile{}},
-		{[]Line{&MetaCommentLine{"# meta:", nil}, &MetaCommentLine{"#  a: 100", nil}}, TestFile{Metadata: map[string]string{a: 100}}},
-		// {"# meta:\n#  a: 100\naaaa:", []Line{&MetaCommentLine{"# meta:", nil}, &MetaCommentLine{"#  a: 100", nil}, &TestCaseLine{"aaaa:"}}, nil},
-		// {"aaaa:\n  # a", []Line{&TestCaseLine{"aaaa:"}, &TestCaseCommentLine{"  # a", nil}}, nil},
-		// {"aaaa:\n  $ a", []Line{&TestCaseLine{"aaaa:"}, &CommandLine{"  $ a", nil}}, nil},
-		// {"aaaa:\n  $ a\n  a", []Line{&TestCaseLine{"aaaa:"}, &CommandLine{"  $ a", nil}, &OutputLine{"  a", nil}}, nil},
-		// {"aaaa:\n  $ a\n  a\n  $ b\n  > c", []Line{&TestCaseLine{"aaaa:"}, &CommandLine{"  $ a", nil}, &OutputLine{"  a", nil}, &CommandLine{"  $ b", nil}, &CommandContinueLine{"  > c", nil}}, nil},
-		// {"aaaa:\n  $ a\n  a\n  $ b\n  > c\n  b\n  c", []Line{&TestCaseLine{"aaaa:"}, &CommandLine{"  $ a", nil}, &OutputLine{"  a", nil}, &CommandLine{"  $ b", nil}, &CommandContinueLine{"  > c", nil}, &OutputLine{"  b", nil}, &OutputLine{"  c", nil}}, nil},
+		{
+			[]Line{},
+			TestFile{},
+		},
+		{
+			[]Line{&CommentLine{"#a"}},
+			TestFile{Comments: []string{"#a"}},
+		},
+		{
+			[]Line{&MetaCommentLine{"# meta:", nil}},
+			TestFile{},
+		},
+		{
+			[]Line{
+				&MetaCommentLine{"# meta:", nil},
+				&MetaCommentLine{"#  a: 100", nil},
+			},
+			TestFile{},
+		},
+		{
+			[]Line{
+				&MetaCommentLine{"# meta:", nil},
+				&MetaCommentLine{"#  a: 100", nil},
+				&TestCaseLine{"aaaa:"},
+			},
+			TestFile{
+				Tests: []TestCase{
+					TestCase{Metadata: map[string]string{"a": "100"}},
+				},
+			},
+		},
+		{
+			[]Line{
+				&TestCaseLine{"aaaa:"},
+				&TestCaseCommentLine{"  # a", nil},
+			},
+			TestFile{
+				Tests: []TestCase{
+					TestCase{Comments: []string{"  # a"}},
+				},
+			},
+		},
+		{
+			[]Line{
+				&TestCaseLine{"aaaa:"},
+				&CommandLine{"  $ a", nil},
+			},
+			TestFile{
+				Tests: []TestCase{
+					TestCase{
+						Steps: []*TestStep{
+							&TestStep{Command: "  $ a"},
+						},
+					},
+				},
+			},
+		},
+		{
+			[]Line{
+				&TestCaseLine{"aaaa:"},
+				&CommandLine{"  $ a", nil},
+				&OutputLine{"  a", nil},
+			},
+			TestFile{
+				Tests: []TestCase{
+					TestCase{
+						Steps: []*TestStep{
+							&TestStep{Command: "  $ a", Output: "  a"},
+						},
+					},
+				},
+			},
+		},
+		{
+			[]Line{
+				&TestCaseLine{"aaaa:"},
+				&CommandLine{"  $ a", nil},
+				&OutputLine{"  a", nil},
+				&CommandLine{"  $ b", nil},
+				&CommandContinueLine{"  > c", nil},
+			},
+			TestFile{
+				Tests: []TestCase{
+					TestCase{
+						Steps: []*TestStep{
+							&TestStep{Command: "  $ a", Output: "  a"},
+							&TestStep{Command: "  $ b\n  > c"},
+						},
+					},
+				},
+			},
+		},
+		{
+			[]Line{
+				&TestCaseLine{"aaaa:"},
+				&CommandLine{"  $ a", nil},
+				&OutputLine{"  a", nil},
+				&CommandLine{"  $ b", nil},
+				&CommandContinueLine{"  > c", nil},
+				&OutputLine{"  b", nil},
+				&OutputLine{"  c", nil},
+			},
+			TestFile{
+				Tests: []TestCase{
+					TestCase{
+						Steps: []*TestStep{
+							&TestStep{Command: "  $ a", Output: "  a"},
+							&TestStep{Command: "  $ b\n  > c", Output: "  b\n  c"},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
-        testFile := NewFromRawT(tt.l)
+		testFile := NewFromRawT(tt.l)
 
-		if !cmp.Equal(testFile, tt.t) {
-			t.Fatalf("want = %s, got = %s (%s)", tt.t, testFile, tt.l)
-		}
+		assert.Equal(t, tt.t, testFile)
 	}
 }

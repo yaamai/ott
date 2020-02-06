@@ -8,29 +8,30 @@ import (
 )
 
 var (
-	CommentLineRegex          = regexp.MustCompile(`^\s*#.*$`)
-	MetaCommentLineRegex      = regexp.MustCompile(`^\s*# meta.*$`)
-	TestCaseLineRegex         = regexp.MustCompile(`^.*:\s*$`)
-	CommandLineRegex          = regexp.MustCompile(`^  \$ .*$`)
-	CommandContinueLineRegex  = regexp.MustCompile(`^  > .*$`)
-	OutputLineRegex           = regexp.MustCompile(`^  [^>$].*$`)
+	CommentLineRegex         = regexp.MustCompile(`^\s*#.*$`)
+	MetaCommentLineRegex     = regexp.MustCompile(`^\s*# meta.*$`)
+	TestCaseLineRegex        = regexp.MustCompile(`^.*:\s*$`)
+	CommandLineRegex         = regexp.MustCompile(`^  \$ .*$`)
+	CommandContinueLineRegex = regexp.MustCompile(`^  > .*$`)
+	OutputLineRegex          = regexp.MustCompile(`^  [^>$].*$`)
 )
 
 type ParseRawTContext struct {
-	t []Line
-    metaCommentLine *MetaCommentLine
-    testCaseLine *TestCaseLine
-    commandLine *CommandLine
+	t               []Line
+	metaCommentLine *MetaCommentLine
+	testCaseLine    *TestCaseLine
+	commandLine     *CommandLine
 }
+
 func (c ParseRawTContext) isContext(context string) bool {
 	switch context {
 	case "":
 		return true
-    case "meta-comment":
+	case "meta-comment":
 		return c.metaCommentLine != nil
-    case "test-case":
+	case "test-case":
 		return c.testCaseLine != nil
-    case "command":
+	case "command":
 		return c.commandLine != nil
 	default:
 		return false
@@ -38,51 +39,51 @@ func (c ParseRawTContext) isContext(context string) bool {
 }
 
 func parseCommentLine(line string, context *ParseRawTContext) error {
-    c := CommentLine{line}
-    context.t = append(context.t, &c)
+	c := CommentLine{line}
+	context.t = append(context.t, &c)
 	return nil
 }
 
 func parseMetaCommentLine(line string, context *ParseRawTContext) error {
-    c := MetaCommentLine{line, nil}
+	c := MetaCommentLine{line, nil}
 
-    if context.metaCommentLine != nil {
-        c.parent = context.metaCommentLine
-    }
-    context.t = append(context.t, &c)
-    context.metaCommentLine = &c
+	if context.metaCommentLine != nil {
+		c.parent = context.metaCommentLine
+	}
+	context.t = append(context.t, &c)
+	context.metaCommentLine = &c
 	return nil
 }
 
 func parseTestCaseLine(line string, context *ParseRawTContext) error {
-    c := TestCaseLine{line}
-    context.t = append(context.t, &c)
-    context.testCaseLine = &c
+	c := TestCaseLine{line}
+	context.t = append(context.t, &c)
+	context.testCaseLine = &c
 	return nil
 }
 
 func parseTestCaseCommentLine(line string, context *ParseRawTContext) error {
-    c := TestCaseCommentLine{line, context.testCaseLine}
-    context.t = append(context.t, &c)
+	c := TestCaseCommentLine{line, context.testCaseLine}
+	context.t = append(context.t, &c)
 	return nil
 }
 
 func parseCommandLine(line string, context *ParseRawTContext) error {
-    c := CommandLine{line, context.testCaseLine}
-    context.t = append(context.t, &c)
-    context.commandLine = &c
+	c := CommandLine{line, context.testCaseLine}
+	context.t = append(context.t, &c)
+	context.commandLine = &c
 	return nil
 }
 
 func parseOutputLine(line string, context *ParseRawTContext) error {
-    c := OutputLine{line, context.commandLine}
-    context.t = append(context.t, &c)
+	c := OutputLine{line, context.commandLine}
+	context.t = append(context.t, &c)
 	return nil
 }
 
 func parseCommandContinueLine(line string, context *ParseRawTContext) error {
-    c := CommandContinueLine{line, context.commandLine}
-    context.t = append(context.t, &c)
+	c := CommandContinueLine{line, context.commandLine}
+	context.t = append(context.t, &c)
 	return nil
 }
 
@@ -110,7 +111,7 @@ func ParseRawT(stream io.Reader) ([]Line, error) {
 		zap.S().Debug(line)
 
 		// TODO: add error return. (ex. meta w/o test-case)
-        // TODO: warn not processed line
+		// TODO: warn not processed line
 		for idx, handler := range parseHandler {
 			okContext := context.isContext(handler.contextCondition)
 			okLine := handler.lineCondition(line)

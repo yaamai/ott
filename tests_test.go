@@ -71,6 +71,28 @@ func TestNewFromRawT(t *testing.T) {
 			[]Line{
 				&TestCaseLine{"aaaa:"},
 				&CommandLine{"  $ a", nil},
+				&TestCaseLine{"bbbb:"},
+				&CommandLine{"  $ b", nil},
+			},
+			TestFile{
+				Tests: []TestCase{
+					TestCase{
+						Steps: []*TestStep{
+							&TestStep{Command: "a"},
+						},
+					},
+					TestCase{
+						Steps: []*TestStep{
+							&TestStep{Command: "b"},
+						},
+					},
+				},
+			},
+		},
+		{
+			[]Line{
+				&TestCaseLine{"aaaa:"},
+				&CommandLine{"  $ a", nil},
 				&OutputLine{"  a", nil},
 			},
 			TestFile{

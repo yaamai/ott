@@ -1,46 +1,40 @@
 package main
 
 import (
-	"fmt"
 	"github.com/pmezard/go-difflib/difflib"
 	"go.uber.org/zap"
 )
 
-func RunTestStep(s *Session, v *TestStep) {
-	command := v.GetCommand()
-	zap.S().Debug("Running", command)
-	result := s.ExecuteCommand(command)
-	expect := v.GetOutput()
-
-	zap.S().Debug("R", result, expect)
-	diff := difflib.UnifiedDiff{
-		A:        difflib.SplitLines(expect),
-		B:        difflib.SplitLines(result),
-		FromFile: "Expected",
-		ToFile:   "Output",
-		Context:  3,
-	}
-	text, _ := difflib.GetUnifiedDiffString(diff)
-	fmt.Printf(text)
+type Runner struct {
+	session *Session
 }
 
-func RunTestCase(s *Session, v *TestCase) {
-	zap.S().Debug(v.Name)
-	zap.S().Debug(v.Metadata)
-	zap.S().Debug(v.TestSteps)
-	for _, step := range v.TestSteps {
-		RunTestStep(s, step)
+func NewRunner() (*Runner, error) {
+	sess, err := NewSession()
+	if err != nil {
+		return nil, err
 	}
+
+	return &Runner{
+		session: sess,
+	}, nil
 }
 
-func Run(s *Session, t *TFile) {
-	for _, line := range t.Lines {
-
-		switch v := line.(type) {
-		case *Comment:
-			zap.S().Debug(v)
-		case *TestCase:
-			RunTestCase(s, v)
+func (r *Runner) Run(testFile *TestFile) {
+	zap.S().Info("Running test-file: ", testFile.Name)
+	for _, testCase := range testFile.Tests {
+		zap.S().Info("Running test-case: ", testCase.Name)
+		for _, testStep := range testCase.Steps {
+			actualOutput := r.session.ExecuteCommand(testStep.Command)
+			diff := difflib.UnifiedDiff{
+				A:        difflib.SplitLines(testStep.Output),
+				B:        difflib.SplitLines(actualOutput),
+				FromFile: "Expected",
+				ToFile:   "Output",
+				Context:  3,
+			}
+			text, _ := difflib.GetUnifiedDiffString(diff)
+			zap.S().Info(text)
 		}
 	}
 }

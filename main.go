@@ -2,13 +2,34 @@ package main
 
 import (
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"log"
-	"strings"
+	"os"
+	//	"strings"
+	"flag"
+)
+
+var (
+	testFileName string
+	logLevelStr  string
 )
 
 func main() {
+	// parse flags
+	flag.StringVar(&logLevelStr, "log", "debug", "log level")
+	flag.Parse()
+
+	if flag.NArg() < 1 {
+		os.Exit(1)
+	}
+	testFileName = flag.Args()[0]
+
+	// initialize logging
 	logConfig := zap.NewDevelopmentConfig()
-	logConfig.Level.SetLevel(zap.InfoLevel)
+	logLevel := new(zapcore.Level)
+	logLevel.UnmarshalText([]byte(logLevelStr))
+	logConfig.Level.SetLevel(*logLevel)
+
 	logger, err := logConfig.Build()
 	if err != nil {
 		log.Fatalln(err)
@@ -18,42 +39,26 @@ func main() {
 	undo := zap.ReplaceGlobals(logger)
 	defer undo()
 
-	s, err := NewSession()
+	// parse t file
+	f, err := os.OpenFile(testFileName, os.O_RDONLY, 0755)
 	if err != nil {
-		log.Fatalln(err)
+		zap.S().Fatal(err)
+		os.Exit(1)
+	}
+	defer f.Close()
+
+	lines, err := ParseRawT(f)
+	if err != nil {
+		zap.S().Fatal(err)
+		os.Exit(1)
 	}
 
-	/*
-		f, err := os.OpenFile("", os.O_RDONLY, 0755)
-		if err != nil {
-			return TFile{}, err
-		}
-		defer f.Close()
-	*/
-	stream := strings.NewReader(`
-# meta
-#  a: 100
-#  b: 100
-echo-a:
-  $ echo -e "a\nb"
-  a
-  b
-  $ echo -e "c\nd"
-  aaaa
-  d
-date:
-  $ date
-  aaa
-multiline:
-  $ export B=200
-  $ echo a &&\
-  > date &&\
-  > echo $B
-  b
-`)
-	t, err := ParseTFile(stream)
+	// run
+	testFile := NewFromRawT(lines)
+	runner, err := NewRunner()
 	if err != nil {
-		log.Fatalln(err)
+		zap.S().Fatal(err)
+		os.Exit(1)
 	}
-	Run(s, t)
+	runner.Run(&testFile)
 }

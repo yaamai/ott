@@ -25,6 +25,8 @@ func (r *Runner) Run(testFile *TestFile) {
 	for _, testCase := range testFile.Tests {
 		zap.S().Info("Running test-case: ", testCase.Name)
 		for _, testStep := range testCase.Steps {
+		    zap.S().Debug("Running test-step: ", testStep.Command)
+		    zap.S().Debug("                 : ", testStep.Output)
 			actualOutput := r.session.ExecuteCommand(testStep.Command)
 			diff := difflib.UnifiedDiff{
 				A:        difflib.SplitLines(testStep.Output),

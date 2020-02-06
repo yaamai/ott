@@ -56,6 +56,9 @@ func NewFromRawT(rawT []Line) TestFile {
 			value := match[2]
 			(*meta)[key] = value
 		case *TestCaseLine:
+	        if testCase != nil {
+	            t.Tests = append(t.Tests, *testCase)
+	        }
 			testCase = &TestCase{}
 			if meta != nil {
 				testCase.Metadata = *meta

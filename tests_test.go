@@ -61,7 +61,7 @@ func TestNewFromRawT(t *testing.T) {
 				Tests: []TestCase{
 					TestCase{
 						Steps: []*TestStep{
-							&TestStep{Command: "  $ a"},
+							&TestStep{Command: "a"},
 						},
 					},
 				},
@@ -77,7 +77,7 @@ func TestNewFromRawT(t *testing.T) {
 				Tests: []TestCase{
 					TestCase{
 						Steps: []*TestStep{
-							&TestStep{Command: "  $ a", Output: "  a"},
+							&TestStep{Command: "a", Output: "a"},
 						},
 					},
 				},
@@ -95,8 +95,8 @@ func TestNewFromRawT(t *testing.T) {
 				Tests: []TestCase{
 					TestCase{
 						Steps: []*TestStep{
-							&TestStep{Command: "  $ a", Output: "  a"},
-							&TestStep{Command: "  $ b\n  > c"},
+							&TestStep{Command: "a", Output: "a"},
+							&TestStep{Command: "b\nc"},
 						},
 					},
 				},
@@ -116,8 +116,8 @@ func TestNewFromRawT(t *testing.T) {
 				Tests: []TestCase{
 					TestCase{
 						Steps: []*TestStep{
-							&TestStep{Command: "  $ a", Output: "  a"},
-							&TestStep{Command: "  $ b\n  > c", Output: "  b\n  c"},
+							&TestStep{Command: "a", Output: "a"},
+							&TestStep{Command: "b\nc", Output: "b\nc"},
 						},
 					},
 				},

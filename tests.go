@@ -25,6 +25,8 @@ type TestStep struct {
 
 var (
 	ParseMetaCommentLine = regexp.MustCompile(`^\s*#\s+(.*?):\s*(.*?)$`)
+	ParseCommandLine     = regexp.MustCompile(`^  [>$] (.*)$`)
+	ParseOutputLine      = regexp.MustCompile(`^  (.*)$`)
 )
 
 // Convert "raw-T-file" to structual representation
@@ -46,6 +48,7 @@ func NewFromRawT(rawT []Line) TestFile {
 		case *MetaCommentLine:
 			if meta == nil {
 				meta = &map[string]string{}
+				// skip meta start-marker
 				continue
 			}
 			match := ParseMetaCommentLine.FindStringSubmatch(line.Line())
@@ -53,9 +56,7 @@ func NewFromRawT(rawT []Line) TestFile {
 			value := match[2]
 			(*meta)[key] = value
 		case *TestCaseLine:
-			if testCase == nil {
-				testCase = &TestCase{}
-			}
+			testCase = &TestCase{}
 			if meta != nil {
 				testCase.Metadata = *meta
 				meta = nil
@@ -65,14 +66,18 @@ func NewFromRawT(rawT []Line) TestFile {
 		case *CommandLine:
 			testStep = &TestStep{}
 			testCase.Steps = append(testCase.Steps, testStep)
-			testStep.Command = line.Line()
+			match := ParseCommandLine.FindStringSubmatch(line.Line())
+			testStep.Command = match[1]
 		case *OutputLine:
 			if testStep.Output != "" {
 				testStep.Output += "\n"
 			}
-			testStep.Output += line.Line()
+
+			match := ParseOutputLine.FindStringSubmatch(line.Line())
+			testStep.Output += match[1]
 		case *CommandContinueLine:
-			testStep.Command += "\n" + line.Line()
+			match := ParseCommandLine.FindStringSubmatch(line.Line())
+			testStep.Command += "\n" + match[1]
 		}
 	}
 	if testCase != nil {

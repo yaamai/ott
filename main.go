@@ -61,4 +61,8 @@ func main() {
 		os.Exit(1)
 	}
 	runner.Run(&testFile)
+
+    for _, l := range(testFile.ConvertToLines()) {
+        log.Println(l.Line())
+    }
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"regexp"
+    "strings"
 )
 
 type TestFile struct {
@@ -20,13 +21,16 @@ type TestCase struct {
 type TestStep struct {
 	Comments []string `json:"comments"`
 	Command  string   `json:"command"`
-	Output   string   `json:"Output"`
+	ExpectedOutput   string   `json:"expected_output"`
+    ActualOutput string `json:"actual_output"`
+    Diff string `json:"diff"`
 }
 
 var (
 	ParseMetaCommentLine = regexp.MustCompile(`^\s*#\s+(.*?):\s*(.*?)$`)
 	ParseCommandLine     = regexp.MustCompile(`^  [>$] (.*)$`)
 	ParseOutputLine      = regexp.MustCompile(`^  (.*)$`)
+	ParseTestCaseLine    = regexp.MustCompile(`^(.*):\s*$`)
 )
 
 // Convert "raw-T-file" to structual representation
@@ -59,7 +63,8 @@ func NewFromRawT(rawT []Line) TestFile {
 			if testCase != nil {
 				t.Tests = append(t.Tests, *testCase)
 			}
-			testCase = &TestCase{}
+            match := ParseTestCaseLine.FindStringSubmatch(line.Line())
+			testCase = &TestCase{Name: match[1]}
 			if meta != nil {
 				testCase.Metadata = *meta
 				meta = nil
@@ -72,12 +77,12 @@ func NewFromRawT(rawT []Line) TestFile {
 			match := ParseCommandLine.FindStringSubmatch(line.Line())
 			testStep.Command = match[1]
 		case *OutputLine:
-			if testStep.Output != "" {
-				testStep.Output += "\n"
+			if testStep.ExpectedOutput != "" {
+				testStep.ExpectedOutput += "\n"
 			}
 
 			match := ParseOutputLine.FindStringSubmatch(line.Line())
-			testStep.Output += match[1]
+			testStep.ExpectedOutput += match[1]
 		case *CommandContinueLine:
 			match := ParseCommandLine.FindStringSubmatch(line.Line())
 			testStep.Command += "\n" + match[1]
@@ -91,5 +96,46 @@ func NewFromRawT(rawT []Line) TestFile {
 }
 
 func (t *TestFile) ConvertToLines() []Line {
-	return nil
+    lines := []Line{}
+
+    // add file comments
+    for _, c := range(t.Comments) {
+        lines = append(lines, &CommentLine{c})
+    }
+
+	for _, testCase := range t.Tests {
+        // add test-case metadata
+        if testCase.Metadata != nil {
+            lines = append(lines, &MetaCommentLine{"# meta"})
+            for k, v := range(testCase.Metadata) {
+                lines = append(lines, &MetaCommentLine{"# " + k + ": " + v})
+            }
+        }
+
+        // add test-case line
+        lines = append(lines, &TestCaseLine{testCase.Name + ":"})
+		for _, testStep := range testCase.Steps {
+            // add test-step comment
+            for _, c := range(testStep.Comments) {
+                lines = append(lines, &CommentLine{c})
+            }
+
+            // add test-command
+            for idx, l := range(strings.Split(testStep.Command, "\n")) {
+                if idx == 0 {
+                    lines = append(lines, &CommandLine{"  $ " + l})
+                } else {
+                    lines = append(lines, &CommandLine{"  > " + l})
+                }
+            }
+
+            // add output
+            if testStep.ExpectedOutput != "" {
+                for _, l := range(strings.Split(testStep.ExpectedOutput, "\n")) {
+                    lines = append(lines, &CommandLine{"  " + l})
+                }
+            }
+        }
+    }
+	return lines
 }

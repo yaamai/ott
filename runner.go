@@ -22,21 +22,24 @@ func NewRunner() (*Runner, error) {
 
 func (r *Runner) Run(testFile *TestFile) {
 	zap.S().Info("Running test-file: ", testFile.Name)
-	for _, testCase := range testFile.Tests {
+	for testCaseIdx, testCase := range testFile.Tests {
 		zap.S().Info("Running test-case: ", testCase.Name)
-		for _, testStep := range testCase.Steps {
+		for testStepIdx, testStep := range testCase.Steps {
 			zap.S().Debug("Running test-step: ", testStep.Command)
-			zap.S().Debug("                 : ", testStep.Output)
+			zap.S().Debug("                 : ", testStep.ExpectedOutput)
 			actualOutput := r.session.ExecuteCommand(testStep.Command)
 			diff := difflib.UnifiedDiff{
-				A:        difflib.SplitLines(testStep.Output),
+				A:        difflib.SplitLines(testStep.ExpectedOutput),
 				B:        difflib.SplitLines(actualOutput),
 				FromFile: "Expected",
 				ToFile:   "Output",
 				Context:  3,
 			}
 			text, _ := difflib.GetUnifiedDiffString(diff)
-			zap.S().Info(text)
+
+            testFile.Tests[testCaseIdx].Steps[testStepIdx].ActualOutput = actualOutput
+            testFile.Tests[testCaseIdx].Steps[testStepIdx].Diff = text
+			zap.S().Debug(text)
 		}
 	}
 }

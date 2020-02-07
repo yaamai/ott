@@ -63,3 +63,39 @@ func (b *LockedBuffer) ReadToPattern(pattern []byte) ([]byte, error) {
 
 	return nil, errors.New("timeout waiting pattern present")
 }
+
+func (b *LockedBuffer) ReadBetweenPattern(startPattern, endPattern []byte) ([]byte, error) {
+
+	buf := b.Bytes()
+	startPos := bytes.Index(buf, startPattern)
+	if startPos == -1 {
+		return nil, nil
+	}
+	startPos += len(startPattern)
+	endPos := bytes.Index(buf[startPos:], endPattern)
+	if endPos == -1 {
+		return nil, nil
+	}
+	endPos += startPos
+
+	// skip startPattern
+	ignoreBuf := make([]byte, startPos)
+	l, err := b.Read(ignoreBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	// read target data
+	resultLen := endPos - startPos
+	resultBuf := make([]byte, resultLen)
+	l, err = b.Read(resultBuf)
+	if err != nil {
+		return nil, err
+	}
+	if l != resultLen {
+		return nil, errors.New("failed to read from buffer")
+	}
+
+	// TODO: read endPattern
+	return resultBuf, nil
+}

@@ -13,8 +13,8 @@ date:
   aaa
 multiline:
   $ export B=200
-  $ echo a &&\
-  > date &&\
+  $ echo a &&
+  > date &&
   > echo $B
   b
 

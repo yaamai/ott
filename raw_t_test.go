@@ -30,6 +30,6 @@ func TestRawTParse(t *testing.T) {
 			t.Fatalf("want = %s, got = %s (%s)", tt.err, err, tt.t)
 		}
 
-        assert.Equal(t, tt.l, lines)
+		assert.Equal(t, tt.l, lines)
 	}
 }

@@ -12,8 +12,11 @@ import (
 )
 
 var (
-	MARKER = []byte("###OTT-OTT###")
-	LF     = []byte("\n")
+	START_MARKER     = `###OTT-START###`
+	START_MARKER_CMD = []byte(`echo -n "` + START_MARKER + `"; `)
+	END_MARKER       = `###OTT-END###`
+	END_MARKER_CMD   = []byte(`; echo -n "` + END_MARKER + `"`)
+	LF               = []byte("\n")
 )
 
 type Session struct {
@@ -73,7 +76,7 @@ func (s *Session) Reader() {
 	b := make([]byte, 1024)
 	for {
 		l, err := s.ptmx.Read(b)
-		zap.S().Debug("for go read from pty", l, err, b[:l], string(b[:l]))
+		zap.S().Debug("read from pty", l, err, b[:l], string(b[:l]))
 		if err != nil {
 			break
 		}
@@ -92,11 +95,11 @@ func (s *Session) GetPrompt() []byte {
 func getMarkedCommand(cmd string) []byte {
 	cmdBytes := []byte(cmd)
 
-	result := make([]byte, 0, len(cmdBytes)+2)
+	result := make([]byte, 0)
+	result = append(result, START_MARKER_CMD...)
 	result = append(result, cmdBytes...)
-	result = append(result, []byte("; PS1=")...)
-	result = append(result, MARKER...)
-	result = append(result, LF...) // generate marker prompt
+	result = append(result, END_MARKER_CMD...)
+	result = append(result, LF...) // generate marker output
 
 	return result
 }
@@ -104,9 +107,17 @@ func getMarkedCommand(cmd string) []byte {
 func (s *Session) ExecuteCommand(cmd string) string {
 	s.buffer.Reset()
 	s.ptmx.Write(getMarkedCommand(cmd))
-	output, err := s.buffer.ReadToPattern(MARKER)
-	if err != nil {
-		return ""
+	for retry := 0; retry < 100; retry += 1 {
+		output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
+		zap.S().Debug("wait output", output, err)
+		if err != nil {
+			return ""
+		}
+		if output == nil && err == nil {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		return string(output)
 	}
-	return string(output)
+	return ""
 }

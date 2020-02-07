@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -9,14 +10,13 @@ func TestGetMarkedCommand(t *testing.T) {
 		c    string
 		want string
 	}{
-		{"", "; PS1=###OTT-OTT###\n"},
-		{"date", "date; PS1=###OTT-OTT###\n"},
-		{"date &&\\ date", "date &&\\ date; PS1=###OTT-OTT###\n"},
+		{"", "echo -n \"###OTT-START###\"; ; echo -n \"###OTT-END###\"\n"},
+		{"date", "echo -n \"###OTT-START###\"; date; echo -n \"###OTT-END###\"\n"},
+		{"date &&\\ date", "echo -n \"###OTT-START###\"; date &&\\ date; echo -n \"###OTT-END###\"\n"},
 	}
 	for _, tt := range tests {
-		if got := getMarkedCommand(tt.c); string(got) != tt.want {
-			t.Fatalf("want = %s, got = %s", tt.want, string(got))
-		}
+		got := getMarkedCommand(tt.c)
+		assert.Equal(t, tt.want, string(got))
 	}
 }
 
@@ -40,14 +40,12 @@ func TestExecuteCommand(t *testing.T) {
 	}
 
 	output := sess.ExecuteCommand("echo a")
-	if output != "a\n" {
-		t.Fatalf("want =%s, got = %s", "a", output)
-	}
+	assert.Equal(t, "a\n", output)
 
 	output = sess.ExecuteCommand("echo a")
-	if output != "a\n" {
-		t.Fatalf("want =%s, got = %s", "a", output)
-	}
+	assert.Equal(t, "a\n", output)
+
+	// output = sess.ExecuteRawCommand("echo MARKER; echo a &&\\\n echo b; echo MARKER\n")
 }
 
 func TestExecuteCommandStability(t *testing.T) {

@@ -95,7 +95,7 @@ func NewFromRawT(rawT []Line) TestFile {
 	return t
 }
 
-func (t *TestFile) ConvertToLines() []Line {
+func (t *TestFile) ConvertToLines(outputDiff bool) []Line {
     lines := []Line{}
 
     // add file comments
@@ -129,10 +129,18 @@ func (t *TestFile) ConvertToLines() []Line {
                 }
             }
 
-            // add output
-            if testStep.ExpectedOutput != "" {
-                for _, l := range(strings.Split(testStep.ExpectedOutput, "\n")) {
-                    lines = append(lines, &CommandLine{"  " + l})
+            if outputDiff {
+                if testStep.Diff != "" {
+                    for _, l := range(strings.Split(testStep.Diff, "\n")) {
+                        lines = append(lines, &OutputLine{"  " + l})
+                    }
+                }
+            } else {
+                // add output
+                if testStep.ExpectedOutput != "" {
+                    for _, l := range(strings.Split(testStep.ExpectedOutput, "\n")) {
+                        lines = append(lines, &OutputLine{"  " + l})
+                    }
                 }
             }
         }

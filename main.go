@@ -4,6 +4,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"log"
+	"fmt"
 	"os"
 	//	"strings"
 	"flag"
@@ -16,7 +17,7 @@ var (
 
 func main() {
 	// parse flags
-	flag.StringVar(&logLevelStr, "log", "debug", "log level")
+	flag.StringVar(&logLevelStr, "log", "warn", "log level")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -62,7 +63,7 @@ func main() {
 	}
 	runner.Run(&testFile)
 
-    for _, l := range(testFile.ConvertToLines()) {
-        log.Println(l.Line())
+    for _, l := range(testFile.ConvertToLines(true)) {
+        fmt.Println(l.Line())
     }
 }

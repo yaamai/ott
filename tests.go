@@ -1,25 +1,25 @@
 package main
 
 import (
-	"regexp"
 	"go.uber.org/zap"
+	"regexp"
 	"strings"
 )
 
 type TestFile struct {
-	Name     string     `json:"name"`
-	Comments []string   `json:"comments"`
+	Name     string            `json:"name"`
+	Comments []string          `json:"comments"`
 	Metadata map[string]string `json:"metadata"`
-	Tests    []*TestCase `json:"tests"`
+	Tests    []*TestCase       `json:"tests"`
 }
 
 type TestCase struct {
-	Name     string            `json:"name"`
-	Metadata map[string]string `json:"metadata"`
-	Comments []string          `json:"comments"`
-	Steps    []*TestStep       `json:"steps"`
-    Generated bool `json:"generated"`
-    NoInject bool `json:"no_inject"`
+	Name      string            `json:"name"`
+	Metadata  map[string]string `json:"metadata"`
+	Comments  []string          `json:"comments"`
+	Steps     []*TestStep       `json:"steps"`
+	Generated bool              `json:"generated"`
+	NoInject  bool              `json:"no_inject"`
 }
 
 type TestStep struct {
@@ -40,49 +40,49 @@ var (
 // Convert "raw-T-file" to structual representation
 // this convert is irreversible
 func NewFromRawT(name string, rawT []Line) TestFile {
-    // TODO: refactoring
+	// TODO: refactoring
 
 	var (
 		t        TestFile
 		meta     *map[string]string
-        comments []string
+		comments []string
 		testCase *TestCase
 		testStep *TestStep
 	)
 
-    t.Name = name
+	t.Name = name
 
 	for _, rawLine := range rawT {
 		switch line := rawLine.(type) {
 		case *CommentLine:
-            zap.S().Debug("CommentLine:", line.Line())
+			zap.S().Debug("CommentLine:", line.Line())
 			comments = append(comments, line.Line())
-        case *EmptyLine:
-            zap.S().Debug("EmptyLine:", line.Line())
-            // to first empty-line, comments belong to file
-            if t.Comments == nil {
-                t.Comments = comments
-                comments = []string{}
-            }
-            if meta != nil && testCase == nil {
-                t.Metadata = *meta
-                meta = nil
-            }
+		case *EmptyLine:
+			zap.S().Debug("EmptyLine:", line.Line())
+			// to first empty-line, comments belong to file
+			if t.Comments == nil {
+				t.Comments = comments
+				comments = []string{}
+			}
+			if meta != nil && testCase == nil {
+				t.Metadata = *meta
+				meta = nil
+			}
 		case *MetaCommentLine:
-            zap.S().Debug("MetaCommentLine:", line.Line())
+			zap.S().Debug("MetaCommentLine:", line.Line())
 			if meta == nil {
 				meta = &map[string]string{}
 				// skip meta start-marker
 				continue
 			}
 			match := ParseMetaCommentLine.FindStringSubmatch(line.Line())
-            zap.S().Debug("ParseMetaCommentLine:", line.Line(), match)
+			zap.S().Debug("ParseMetaCommentLine:", line.Line(), match)
 
 			key := match[1]
 			value := match[2]
 			(*meta)[key] = value
 		case *TestCaseLine:
-            zap.S().Debug("TestCaseLine:", line.Line())
+			zap.S().Debug("TestCaseLine:", line.Line())
 			if testCase != nil {
 				t.Tests = append(t.Tests, testCase)
 			}
@@ -92,27 +92,27 @@ func NewFromRawT(name string, rawT []Line) TestFile {
 				testCase.Metadata = *meta
 				meta = nil
 			}
-            if len(comments) != 0 {
-                testCase.Comments = comments
-                comments = []string{}
-            }
+			if len(comments) != 0 {
+				testCase.Comments = comments
+				comments = []string{}
+			}
 		case *CommandLine:
-            zap.S().Debug("CommandLine:", line.Line())
+			zap.S().Debug("CommandLine:", line.Line())
 			testStep = &TestStep{}
 			testCase.Steps = append(testCase.Steps, testStep)
 			match := ParseCommandLine.FindStringSubmatch(line.Line())
 			testStep.Command = match[1]
-            if len(comments) != 0 {
-                testStep.Comments = comments
-                comments = []string{}
-            }
+			if len(comments) != 0 {
+				testStep.Comments = comments
+				comments = []string{}
+			}
 		case *OutputLine:
-            zap.S().Debug("OutputLine:", line.Line())
+			zap.S().Debug("OutputLine:", line.Line())
 
 			match := ParseOutputLine.FindStringSubmatch(line.Line())
 			testStep.ExpectedOutput += match[1] + "\n"
 		case *CommandContinueLine:
-            zap.S().Debug("CommandContinueLine:", line.Line())
+			zap.S().Debug("CommandContinueLine:", line.Line())
 			match := ParseCommandLine.FindStringSubmatch(line.Line())
 			testStep.Command += "\n" + match[1]
 		}

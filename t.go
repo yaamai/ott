@@ -57,7 +57,7 @@ func parseTestCaseLine(line string, context *ParseTContext) error {
 	c := TestCaseLine{line}
 	context.t = append(context.t, &c)
 	context.testCaseLine = &c
-    context.metaCommentLine = nil
+	context.metaCommentLine = nil
 	return nil
 }
 
@@ -81,10 +81,10 @@ func parseCommandContinueLine(line string, context *ParseTContext) error {
 }
 
 func parseEmptyLine(line string, context *ParseTContext) error {
-    c := EmptyLine{line}
-    context.t = append(context.t, &c)
-    context.metaCommentLine = nil
-    context.commandLine = nil
+	c := EmptyLine{line}
+	context.t = append(context.t, &c)
+	context.metaCommentLine = nil
+	context.commandLine = nil
 	return nil
 }
 
@@ -112,15 +112,20 @@ func ParseT(stream io.Reader) ([]Line, error) {
 		zap.S().Debug(line)
 
 		// TODO: add error return. (ex. meta w/o test-case)
-		// TODO: warn not processed line
+		handled := false
 		for idx, handler := range parseHandler {
 			okContext := context.isContext(handler.contextCondition)
 			okLine := handler.lineCondition(line)
 			zap.S().Debug("Handler#", idx, okContext, okLine)
 			if okContext && okLine {
 				handler.f(line, &context)
+				handled = true
 				break
 			}
+		}
+
+		if !handled {
+			zap.S().Warn("line not processed")
 		}
 	}
 	return context.t, nil

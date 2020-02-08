@@ -13,10 +13,10 @@ func TestInsert(t *testing.T) {
         idx    int
 		err    error
 	}{
-		{[]*TestCase{}, []*TestCase{&TestCase{}}, &TestCase{}, 0, nil},
-		{[]*TestCase{&TestCase{Name: "a"}}, []*TestCase{&TestCase{}, &TestCase{Name: "a"}}, &TestCase{}, 0, nil},
-		{[]*TestCase{&TestCase{Name: "a"}}, []*TestCase{&TestCase{Name: "a"}, &TestCase{}}, &TestCase{}, 1, nil},
-		{[]*TestCase{&TestCase{Name: "a"}, &TestCase{Name: "b"}}, []*TestCase{&TestCase{Name: "a"}, &TestCase{}, &TestCase{Name: "b"}}, &TestCase{}, 1, nil},
+		{[]*TestCase{}, []*TestCase{&TestCase{Generated: true}}, &TestCase{}, 0, nil},
+		{[]*TestCase{&TestCase{Name: "a"}}, []*TestCase{&TestCase{Generated: true}, &TestCase{Name: "a"}}, &TestCase{}, 0, nil},
+		{[]*TestCase{&TestCase{Name: "a"}}, []*TestCase{&TestCase{Name: "a"}, &TestCase{Generated: true}}, &TestCase{}, 1, nil},
+		{[]*TestCase{&TestCase{Name: "a"}, &TestCase{Name: "b"}}, []*TestCase{&TestCase{Name: "a"}, &TestCase{Generated: true}, &TestCase{Name: "b"}}, &TestCase{Generated: true}, 1, nil},
 	}
 	for _, tt := range tests {
         got := insert(tt.src, tt.idx, tt.d)
@@ -24,4 +24,3 @@ func TestInsert(t *testing.T) {
 		assert.Equal(t, tt.expect, got)
 	}
 }
-

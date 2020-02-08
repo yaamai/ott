@@ -52,7 +52,7 @@ func (r *Runner) runTestCase(testCase *TestCase) {
 }
 
 func getPrefixedTestCase(testFile *TestFile, prefixes... string) [][]*TestCase {
-    result := make([][]*TestCase, len(prefixes))
+    result := [][]*TestCase{}
 
     for _, prefix := range(prefixes) {
 
@@ -82,29 +82,50 @@ func insert(testCaseSlice []*TestCase, idx int, testCase *TestCase) []*TestCase 
 }
 
 func insertSetupTestCase(testFile *TestFile) {
-    cases := getPrefixedTestCase(testFile, "setup-per-run", "setup-per-file", "setup-per-case")
+    // TODO: consider test-cases as container/list
+    prefixedTestCases := getPrefixedTestCase(testFile, "setup-per-run", "setup-per-file", "setup-per-case")
+    zap.S().Debug("Injecting setup test-cases", prefixedTestCases)
+
+    // mark prefixed test-cases as NoInject
+    for _, testCases := range(prefixedTestCases) {
+        for _, testCase := range(testCases) {
+            testCase.NoInject = true
+        }
+    }
+
+    result := []*TestCase{}
 
     // insert per-run testcase
-    // TODO: consider test-cases as container/list
-    for idx, c := range(cases[0]) {
-        testFile.Tests = insert(testFile.Tests, idx, c)
+    for _, c := range(prefixedTestCases[0]) {
+        copiedTestCase := *c
+        copiedTestCase.Generated = true
+        result = append(result, &copiedTestCase)
     }
 
     // insert per-file testcase
     // TODO: support multiple file
-    // for idx, c := range(cases[1]) {
-    // }
+    for _, c := range(prefixedTestCases[1]) {
+        copiedTestCase := *c
+        copiedTestCase.Generated = true
+        result = append(result, &copiedTestCase)
+    }
 
     // insert per-csae
-    for targetTestCaseIdx, targetTestCase := range(testFile.Tests) {
-        if targetTestCase.Generated {
+    for _, targetTestCase := range(testFile.Tests) {
+        if targetTestCase.Generated || targetTestCase.NoInject {
             continue
         }
 
-        for idx, c := range(cases[0]) {
-            testFile.Tests = insert(testFile.Tests, targetTestCaseIdx, c)
+        for _, c := range(prefixedTestCases[2]) {
+            copiedTestCase := *c
+            copiedTestCase.Generated = true
+            result = append(result, &copiedTestCase)
         }
+
+        result = append(result, targetTestCase)
     }
+
+    (*testFile).Tests = result
 }
 
 func (r *Runner) Run(testFile *TestFile) {
@@ -114,6 +135,10 @@ func (r *Runner) Run(testFile *TestFile) {
 	zap.S().Info("Running test-file: ", testFile.Name)
 	for testCaseIdx, testCase := range testFile.Tests {
 		zap.S().Info("Running test-case: ", testCase.Name)
+        if strings.HasPrefix(testCase.Name, "setup-") && !testCase.Generated {
+		    zap.S().Debug("skipping setup testcase: ", testCase.Name)
+            continue
+        }
         r.runTestCase(testFile.Tests[testCaseIdx])
 	}
 }

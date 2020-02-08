@@ -8,9 +8,6 @@ echo-a:
   $ echo -e "c\nd"
   aaaa
   d
-date:
-  $ date
-  aaa
 multiline:
   $ export B=200
   $ echo a &&
@@ -18,3 +15,11 @@ multiline:
   > echo $B
   b
 
+setup-per-run:
+  $ date "+%Y"
+
+setup-per-file:
+  $ date "+%m"
+
+setup-per-case:
+  $ date "+%d"

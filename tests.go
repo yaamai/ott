@@ -17,6 +17,7 @@ type TestCase struct {
 	Comments []string          `json:"comments"`
 	Steps    []*TestStep       `json:"steps"`
     Generated bool `json:"generated"`
+    NoInject bool `json:"no_inject"`
 }
 
 type TestStep struct {

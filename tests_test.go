@@ -36,8 +36,8 @@ func TestNewFromRawT(t *testing.T) {
 				&TestCaseLine{"aaaa:"},
 			},
 			TestFile{
-				Tests: []TestCase{
-					TestCase{Name: "aaaa", Metadata: map[string]string{"a": "100"}},
+				Tests: []*TestCase{
+					&TestCase{Name: "aaaa", Metadata: map[string]string{"a": "100"}},
 				},
 			},
 		},
@@ -47,8 +47,8 @@ func TestNewFromRawT(t *testing.T) {
 				&TestCaseCommentLine{"  # a"},
 			},
 			TestFile{
-				Tests: []TestCase{
-					TestCase{Name: "aaaa", Comments: []string{"  # a"}},
+				Tests: []*TestCase{
+					&TestCase{Name: "aaaa", Comments: []string{"  # a"}},
 				},
 			},
 		},
@@ -58,8 +58,8 @@ func TestNewFromRawT(t *testing.T) {
 				&CommandLine{"  $ a"},
 			},
 			TestFile{
-				Tests: []TestCase{
-					TestCase{
+				Tests: []*TestCase{
+					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
 							&TestStep{Command: "a"},
@@ -76,14 +76,14 @@ func TestNewFromRawT(t *testing.T) {
 				&CommandLine{"  $ b"},
 			},
 			TestFile{
-				Tests: []TestCase{
-					TestCase{
+				Tests: []*TestCase{
+					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
 							&TestStep{Command: "a"},
 						},
 					},
-					TestCase{
+					&TestCase{
 						Name: "bbbb",
 						Steps: []*TestStep{
 							&TestStep{Command: "b"},
@@ -99,8 +99,8 @@ func TestNewFromRawT(t *testing.T) {
 				&OutputLine{"  a"},
 			},
 			TestFile{
-				Tests: []TestCase{
-					TestCase{
+				Tests: []*TestCase{
+					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
 							&TestStep{Command: "a", ExpectedOutput: "a\n"},
@@ -118,8 +118,8 @@ func TestNewFromRawT(t *testing.T) {
 				&CommandContinueLine{"  > c"},
 			},
 			TestFile{
-				Tests: []TestCase{
-					TestCase{
+				Tests: []*TestCase{
+					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
 							&TestStep{Command: "a", ExpectedOutput: "a\n"},
@@ -140,8 +140,8 @@ func TestNewFromRawT(t *testing.T) {
 				&OutputLine{"  c"},
 			},
 			TestFile{
-				Tests: []TestCase{
-					TestCase{
+				Tests: []*TestCase{
+					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
 							&TestStep{Command: "a", ExpectedOutput: "a\n"},

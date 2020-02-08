@@ -8,7 +8,7 @@ import (
 type TestFile struct {
 	Name     string     `json:"name"`
 	Comments []string   `json:"comments"`
-	Tests    []TestCase `json:"tests"`
+	Tests    []*TestCase `json:"tests"`
 }
 
 type TestCase struct {
@@ -16,6 +16,7 @@ type TestCase struct {
 	Metadata map[string]string `json:"metadata"`
 	Comments []string          `json:"comments"`
 	Steps    []*TestStep       `json:"steps"`
+    Generated bool `json:"generated"`
 }
 
 type TestStep struct {
@@ -61,7 +62,7 @@ func NewFromRawT(rawT []Line) TestFile {
 			(*meta)[key] = value
 		case *TestCaseLine:
 			if testCase != nil {
-				t.Tests = append(t.Tests, *testCase)
+				t.Tests = append(t.Tests, testCase)
 			}
 			match := ParseTestCaseLine.FindStringSubmatch(line.Line())
 			testCase = &TestCase{Name: match[1]}
@@ -86,7 +87,7 @@ func NewFromRawT(rawT []Line) TestFile {
 		}
 	}
 	if testCase != nil {
-		t.Tests = append(t.Tests, *testCase)
+		t.Tests = append(t.Tests, testCase)
 	}
 
 	return t

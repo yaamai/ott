@@ -17,7 +17,7 @@ func TestTParse(t *testing.T) {
 		{"# meta:", []Line{&MetaCommentLine{"# meta:"}}, nil},
 		{"# meta:\n#  a: 100", []Line{&MetaCommentLine{"# meta:"}, &MetaCommentLine{"#  a: 100"}}, nil},
 		{"# meta:\n#  a: 100\naaaa:", []Line{&MetaCommentLine{"# meta:"}, &MetaCommentLine{"#  a: 100"}, &TestCaseLine{"aaaa:"}}, nil},
-		{"aaaa:\n  # a", []Line{&TestCaseLine{"aaaa:"}, &TestCaseCommentLine{"  # a"}}, nil},
+		{"aaaa:\n  # a", []Line{&TestCaseLine{"aaaa:"}, &CommentLine{"  # a"}}, nil},
 		{"aaaa:\n  $ a", []Line{&TestCaseLine{"aaaa:"}, &CommandLine{"  $ a"}}, nil},
 		{"aaaa:\n  $ a\n  a", []Line{&TestCaseLine{"aaaa:"}, &CommandLine{"  $ a"}, &OutputLine{"  a"}}, nil},
 		{"aaaa:\n  $ a\n  a\n  $ b\n  > c", []Line{&TestCaseLine{"aaaa:"}, &CommandLine{"  $ a"}, &OutputLine{"  a"}, &CommandLine{"  $ b"}, &CommandContinueLine{"  > c"}}, nil},

@@ -16,6 +16,17 @@ func (c *CommentLine) Line() string {
 	return c.string
 }
 
+type EmptyLine struct {
+	string
+}
+
+func (e *EmptyLine) Type() string {
+	return "empty"
+}
+func (e *EmptyLine) Line() string {
+	return e.string
+}
+
 type MetaCommentLine struct {
 	string
 }
@@ -35,17 +46,6 @@ func (c *TestCaseLine) Type() string {
 	return "test-case"
 }
 func (c *TestCaseLine) Line() string {
-	return c.string
-}
-
-type TestCaseCommentLine struct {
-	string
-}
-
-func (c *TestCaseCommentLine) Type() string {
-	return "test-case-comment"
-}
-func (c *TestCaseCommentLine) Line() string {
 	return c.string
 }
 

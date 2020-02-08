@@ -9,6 +9,7 @@ import (
 
 var (
 	CommentLineRegex         = regexp.MustCompile(`^\s*#.*$`)
+	EmptyLineRegex           = regexp.MustCompile(`^\s*$`)
 	MetaCommentLineRegex     = regexp.MustCompile(`^\s*# meta.*$`)
 	TestCaseLineRegex        = regexp.MustCompile(`^.*:\s*$`)
 	CommandLineRegex         = regexp.MustCompile(`^  \$ .*$`)
@@ -56,12 +57,7 @@ func parseTestCaseLine(line string, context *ParseTContext) error {
 	c := TestCaseLine{line}
 	context.t = append(context.t, &c)
 	context.testCaseLine = &c
-	return nil
-}
-
-func parseTestCaseCommentLine(line string, context *ParseTContext) error {
-	c := TestCaseCommentLine{line}
-	context.t = append(context.t, &c)
+    context.metaCommentLine = nil
 	return nil
 }
 
@@ -84,6 +80,14 @@ func parseCommandContinueLine(line string, context *ParseTContext) error {
 	return nil
 }
 
+func parseEmptyLine(line string, context *ParseTContext) error {
+    c := EmptyLine{line}
+    context.t = append(context.t, &c)
+    context.metaCommentLine = nil
+    context.commandLine = nil
+	return nil
+}
+
 func ParseT(stream io.Reader) ([]Line, error) {
 	scanner := bufio.NewScanner(stream)
 
@@ -96,8 +100,8 @@ func ParseT(stream io.Reader) ([]Line, error) {
 		{"command", OutputLineRegex.MatchString, parseOutputLine},
 		{"command", CommandContinueLineRegex.MatchString, parseCommandContinueLine},
 		{"test-case", CommandLineRegex.MatchString, parseCommandLine},
-		{"test-case", CommentLineRegex.MatchString, parseTestCaseCommentLine},
 		{"meta-comment", CommentLineRegex.MatchString, parseMetaCommentLine},
+		{"", EmptyLineRegex.MatchString, parseEmptyLine},
 		{"", MetaCommentLineRegex.MatchString, parseMetaCommentLine},
 		{"", CommentLineRegex.MatchString, parseCommentLine},
 		{"", TestCaseLineRegex.MatchString, parseTestCaseLine},

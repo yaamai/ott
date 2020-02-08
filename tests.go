@@ -2,12 +2,14 @@ package main
 
 import (
 	"regexp"
+	"go.uber.org/zap"
 	"strings"
 )
 
 type TestFile struct {
 	Name     string     `json:"name"`
 	Comments []string   `json:"comments"`
+	Metadata map[string]string `json:"metadata"`
 	Tests    []*TestCase `json:"tests"`
 }
 
@@ -43,6 +45,7 @@ func NewFromRawT(rawT []Line) TestFile {
 	var (
 		t        TestFile
 		meta     *map[string]string
+        comments []string
 		testCase *TestCase
 		testStep *TestStep
 	)
@@ -50,18 +53,34 @@ func NewFromRawT(rawT []Line) TestFile {
 	for _, rawLine := range rawT {
 		switch line := rawLine.(type) {
 		case *CommentLine:
-			t.Comments = append(t.Comments, line.Line())
+            zap.S().Debug("CommentLine:", line.Line())
+			comments = append(comments, line.Line())
+        case *EmptyLine:
+            zap.S().Debug("EmptyLine:", line.Line())
+            // to first empty-line, comments belong to file
+            if t.Comments == nil {
+                t.Comments = comments
+                comments = []string{}
+            }
+            if meta != nil && testCase == nil {
+                t.Metadata = *meta
+                meta = nil
+            }
 		case *MetaCommentLine:
+            zap.S().Debug("MetaCommentLine:", line.Line())
 			if meta == nil {
 				meta = &map[string]string{}
 				// skip meta start-marker
 				continue
 			}
 			match := ParseMetaCommentLine.FindStringSubmatch(line.Line())
+            zap.S().Debug("ParseMetaCommentLine:", line.Line(), match)
+
 			key := match[1]
 			value := match[2]
 			(*meta)[key] = value
 		case *TestCaseLine:
+            zap.S().Debug("TestCaseLine:", line.Line())
 			if testCase != nil {
 				t.Tests = append(t.Tests, testCase)
 			}
@@ -71,18 +90,27 @@ func NewFromRawT(rawT []Line) TestFile {
 				testCase.Metadata = *meta
 				meta = nil
 			}
-		case *TestCaseCommentLine:
-			testCase.Comments = append(testCase.Comments, line.Line())
+            if len(comments) != 0 {
+                testCase.Comments = comments
+                comments = []string{}
+            }
 		case *CommandLine:
+            zap.S().Debug("CommandLine:", line.Line())
 			testStep = &TestStep{}
 			testCase.Steps = append(testCase.Steps, testStep)
 			match := ParseCommandLine.FindStringSubmatch(line.Line())
 			testStep.Command = match[1]
+            if len(comments) != 0 {
+                testStep.Comments = comments
+                comments = []string{}
+            }
 		case *OutputLine:
+            zap.S().Debug("OutputLine:", line.Line())
 
 			match := ParseOutputLine.FindStringSubmatch(line.Line())
 			testStep.ExpectedOutput += match[1] + "\n"
 		case *CommandContinueLine:
+            zap.S().Debug("CommandContinueLine:", line.Line())
 			match := ParseCommandLine.FindStringSubmatch(line.Line())
 			testStep.Command += "\n" + match[1]
 		}

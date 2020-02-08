@@ -15,7 +15,7 @@ func TestNewFromRawT(t *testing.T) {
 			TestFile{},
 		},
 		{
-			[]Line{&CommentLine{"#a"}},
+			[]Line{&CommentLine{"#a"}, &EmptyLine{""}},
 			TestFile{Comments: []string{"#a"}},
 		},
 		{
@@ -44,11 +44,10 @@ func TestNewFromRawT(t *testing.T) {
 		{
 			[]Line{
 				&TestCaseLine{"aaaa:"},
-				&TestCaseCommentLine{"  # a"},
 			},
 			TestFile{
 				Tests: []*TestCase{
-					&TestCase{Name: "aaaa", Comments: []string{"  # a"}},
+					&TestCase{Name: "aaaa"},
 				},
 			},
 		},

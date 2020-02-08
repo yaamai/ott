@@ -152,7 +152,7 @@ func TestNewFromRawT(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		testFile := NewFromRawT(tt.l)
+		testFile := NewFromRawT("", tt.l)
 
 		assert.Equal(t, tt.t, testFile)
 	}

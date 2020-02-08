@@ -39,8 +39,8 @@ var (
 
 // Convert "raw-T-file" to structual representation
 // this convert is irreversible
-func NewFromRawT(rawT []Line) TestFile {
-	// TODO: name from file-meta or filename or parameter?
+func NewFromRawT(name string, rawT []Line) TestFile {
+    // TODO: refactoring
 
 	var (
 		t        TestFile
@@ -49,6 +49,8 @@ func NewFromRawT(rawT []Line) TestFile {
 		testCase *TestCase
 		testStep *TestStep
 	)
+
+    t.Name = name
 
 	for _, rawLine := range rawT {
 		switch line := rawLine.(type) {

@@ -65,7 +65,7 @@ func main() {
 	}
 
 	// run
-	testFile := NewFromRawT(lines)
+	testFile := NewFromRawT(testFileName, lines)
 	runner, err := NewRunner()
 	if err != nil {
 		zap.S().Fatal(err)

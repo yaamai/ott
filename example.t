@@ -2,12 +2,12 @@
 # meta
 #  file: a
 
-# can write comment or meta for test-case here
+# can write comment or meta for test-case("echo-a") here
 # meta
 #  a: 100
 #  b: 100
 echo-a:
-  # can write test-step comment
+  # can write test-step(below) comment
   $ echo -e "a\nb"
   a
   b
@@ -24,3 +24,9 @@ multiline:
   > date &&
   > echo $B
   b
+
+# test-case name prefixed with `(setup|teardown)-per-(run|file|case)`
+# running each timing
+setup-per-run-echo:
+  $ echo n
+  n

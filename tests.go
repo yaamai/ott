@@ -77,12 +77,9 @@ func NewFromRawT(rawT []Line) TestFile {
 			match := ParseCommandLine.FindStringSubmatch(line.Line())
 			testStep.Command = match[1]
 		case *OutputLine:
-			if testStep.ExpectedOutput != "" {
-				testStep.ExpectedOutput += "\n"
-			}
 
 			match := ParseOutputLine.FindStringSubmatch(line.Line())
-			testStep.ExpectedOutput += match[1]
+			testStep.ExpectedOutput += match[1] + "\n"
 		case *CommandContinueLine:
 			match := ParseCommandLine.FindStringSubmatch(line.Line())
 			testStep.Command += "\n" + match[1]

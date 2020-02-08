@@ -23,3 +23,12 @@ setup-per-file:
 
 setup-per-case:
   $ date "+%d"
+
+teardown-per-case:
+  $ date "+%S"
+
+teardown-per-file:
+  $ date "+%M"
+
+teardown-per-run:
+  $ date "+%H"

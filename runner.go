@@ -81,56 +81,59 @@ func insert(testCaseSlice []*TestCase, idx int, testCase *TestCase) []*TestCase 
     return testCaseSlice
 }
 
-func insertSetupTestCase(testFile *TestFile) {
-    // TODO: consider test-cases as container/list
-    prefixedTestCases := getPrefixedTestCase(testFile, "setup-per-run", "setup-per-file", "setup-per-case")
-    zap.S().Debug("Injecting setup test-cases", prefixedTestCases)
+func appendGeneratedTestCase(dest *[]*TestCase, src []*TestCase) {
+    for _, c := range(src) {
+        copiedTestCase := *c
+        copiedTestCase.Generated = true
+        (*dest) = append((*dest), &copiedTestCase)
+    }
+}
+
+func getMarkedPrefixedTestCase(testFile *TestFile, prefixes... string) [][]*TestCase {
+    testCasesList := getPrefixedTestCase(testFile, prefixes...)
 
     // mark prefixed test-cases as NoInject
-    for _, testCases := range(prefixedTestCases) {
+    for _, testCases := range(testCasesList) {
         for _, testCase := range(testCases) {
             testCase.NoInject = true
         }
     }
+    return testCasesList
+}
+
+func injectTestCase(testFile *TestFile) {
+    // TODO: consider test-cases as container/list
+    setupTestCases := getMarkedPrefixedTestCase(testFile, "setup-per-run", "setup-per-file", "setup-per-case")
+    teardownTestCases := getMarkedPrefixedTestCase(testFile, "teardown-per-run", "teardown-per-file", "teardown-per-case")
+    zap.S().Debug("Injecting setup/teardown test-cases: ", setupTestCases, teardownTestCases)
+
 
     result := []*TestCase{}
 
-    // insert per-run testcase
-    for _, c := range(prefixedTestCases[0]) {
-        copiedTestCase := *c
-        copiedTestCase.Generated = true
-        result = append(result, &copiedTestCase)
-    }
-
-    // insert per-file testcase
+    // insert per-run,per-file testcase
     // TODO: support multiple file
-    for _, c := range(prefixedTestCases[1]) {
-        copiedTestCase := *c
-        copiedTestCase.Generated = true
-        result = append(result, &copiedTestCase)
-    }
+    appendGeneratedTestCase(&result, setupTestCases[0])
+    appendGeneratedTestCase(&result, setupTestCases[1])
 
     // insert per-csae
     for _, targetTestCase := range(testFile.Tests) {
         if targetTestCase.Generated || targetTestCase.NoInject {
             continue
         }
-
-        for _, c := range(prefixedTestCases[2]) {
-            copiedTestCase := *c
-            copiedTestCase.Generated = true
-            result = append(result, &copiedTestCase)
-        }
-
+        appendGeneratedTestCase(&result, setupTestCases[2])
         result = append(result, targetTestCase)
+        appendGeneratedTestCase(&result, teardownTestCases[2])
     }
+
+    appendGeneratedTestCase(&result, teardownTestCases[1])
+    appendGeneratedTestCase(&result, teardownTestCases[0])
 
     (*testFile).Tests = result
 }
 
 func (r *Runner) Run(testFile *TestFile) {
 
-    insertSetupTestCase(testFile)
+    injectTestCase(testFile)
 
 	zap.S().Info("Running test-file: ", testFile.Name)
 	for testCaseIdx, testCase := range testFile.Tests {

@@ -37,7 +37,7 @@ func TestNewFromRawT(t *testing.T) {
 			},
 			TestFile{
 				Tests: []TestCase{
-					TestCase{Metadata: map[string]string{"a": "100"}},
+					TestCase{Name: "aaaa", Metadata: map[string]string{"a": "100"}},
 				},
 			},
 		},
@@ -48,7 +48,7 @@ func TestNewFromRawT(t *testing.T) {
 			},
 			TestFile{
 				Tests: []TestCase{
-					TestCase{Comments: []string{"  # a"}},
+					TestCase{Name: "aaaa", Comments: []string{"  # a"}},
 				},
 			},
 		},
@@ -60,6 +60,7 @@ func TestNewFromRawT(t *testing.T) {
 			TestFile{
 				Tests: []TestCase{
 					TestCase{
+						Name: "aaaa",
 						Steps: []*TestStep{
 							&TestStep{Command: "a"},
 						},
@@ -77,11 +78,13 @@ func TestNewFromRawT(t *testing.T) {
 			TestFile{
 				Tests: []TestCase{
 					TestCase{
+						Name: "aaaa",
 						Steps: []*TestStep{
 							&TestStep{Command: "a"},
 						},
 					},
 					TestCase{
+						Name: "bbbb",
 						Steps: []*TestStep{
 							&TestStep{Command: "b"},
 						},
@@ -98,8 +101,9 @@ func TestNewFromRawT(t *testing.T) {
 			TestFile{
 				Tests: []TestCase{
 					TestCase{
+						Name: "aaaa",
 						Steps: []*TestStep{
-							&TestStep{Command: "a", Output: "a"},
+							&TestStep{Command: "a", ExpectedOutput: "a"},
 						},
 					},
 				},
@@ -116,8 +120,9 @@ func TestNewFromRawT(t *testing.T) {
 			TestFile{
 				Tests: []TestCase{
 					TestCase{
+						Name: "aaaa",
 						Steps: []*TestStep{
-							&TestStep{Command: "a", Output: "a"},
+							&TestStep{Command: "a", ExpectedOutput: "a"},
 							&TestStep{Command: "b\nc"},
 						},
 					},
@@ -137,9 +142,10 @@ func TestNewFromRawT(t *testing.T) {
 			TestFile{
 				Tests: []TestCase{
 					TestCase{
+						Name: "aaaa",
 						Steps: []*TestStep{
-							&TestStep{Command: "a", Output: "a"},
-							&TestStep{Command: "b\nc", Output: "b\nc"},
+							&TestStep{Command: "a", ExpectedOutput: "a"},
+							&TestStep{Command: "b\nc", ExpectedOutput: "b\nc"},
 						},
 					},
 				},

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestRawTParse(t *testing.T) {
+func TestTParse(t *testing.T) {
 	tests := []struct {
 		t   string
 		l   []Line
@@ -24,12 +24,9 @@ func TestRawTParse(t *testing.T) {
 		{"aaaa:\n  $ a\n  a\n  $ b\n  > c\n  b\n  c", []Line{&TestCaseLine{"aaaa:"}, &CommandLine{"  $ a"}, &OutputLine{"  a"}, &CommandLine{"  $ b"}, &CommandContinueLine{"  > c"}, &OutputLine{"  b"}, &OutputLine{"  c"}}, nil},
 	}
 	for _, tt := range tests {
-		lines, err := ParseRawT(strings.NewReader(tt.t))
+		lines, err := ParseT(strings.NewReader(tt.t))
 
-		if err != tt.err {
-			t.Fatalf("want = %s, got = %s (%s)", tt.err, err, tt.t)
-		}
-
+		assert.Equal(t, tt.err, err)
 		assert.Equal(t, tt.l, lines)
 	}
 }

@@ -1,21 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"log"
-	"fmt"
 	"os"
 	//	"strings"
+	"encoding/json"
 	"flag"
-    "encoding/json"
 )
 
 var (
 	testFileName string
 	logLevelStr  string
-    outputMode string
-    outputFormat string
+	outputMode   string
+	outputFormat string
 )
 
 func initLog(level string) func() {
@@ -32,7 +32,7 @@ func initLog(level string) func() {
 	defer logger.Sync()
 
 	undo := zap.ReplaceGlobals(logger)
-    return undo
+	return undo
 }
 
 func main() {
@@ -47,8 +47,8 @@ func main() {
 	}
 	testFileName = flag.Args()[0]
 
-    undo := initLog(logLevelStr)
-    defer undo()
+	undo := initLog(logLevelStr)
+	defer undo()
 
 	// parse t file
 	f, err := os.OpenFile(testFileName, os.O_RDONLY, 0755)
@@ -58,7 +58,7 @@ func main() {
 	}
 	defer f.Close()
 
-	lines, err := ParseRawT(f)
+	lines, err := ParseT(f)
 	if err != nil {
 		zap.S().Fatal(err)
 		os.Exit(1)
@@ -73,17 +73,17 @@ func main() {
 	}
 	runner.Run(&testFile)
 
-    // output
-    if outputFormat == "json" {
-        jsonBytes, err := json.Marshal(testFile)
-        if err != nil {
-            zap.S().Fatal(err)
-        }
-        fmt.Println(string(jsonBytes))
-    } else {
-        zap.S().Info("Converting " + outputMode + "mode")
-        for _, l := range(testFile.ConvertToLines(outputMode)) {
-            fmt.Println(l.Line())
-        }
-    }
+	// output
+	if outputFormat == "json" {
+		jsonBytes, err := json.Marshal(testFile)
+		if err != nil {
+			zap.S().Fatal(err)
+		}
+		fmt.Println(string(jsonBytes))
+	} else {
+		zap.S().Info("Converting " + outputMode + "mode")
+		for _, l := range testFile.ConvertToLines(outputMode) {
+			fmt.Println(l.Line())
+		}
+	}
 }

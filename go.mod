@@ -8,6 +8,7 @@ require (
 	github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f // indirect
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sergi/go-diff v1.1.0 // indirect
+	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.13.0
 	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d
 )

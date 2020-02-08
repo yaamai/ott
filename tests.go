@@ -2,7 +2,7 @@ package main
 
 import (
 	"regexp"
-    "strings"
+	"strings"
 )
 
 type TestFile struct {
@@ -19,11 +19,11 @@ type TestCase struct {
 }
 
 type TestStep struct {
-	Comments []string `json:"comments"`
-	Command  string   `json:"command"`
-	ExpectedOutput   string   `json:"expected_output"`
-    ActualOutput string `json:"actual_output"`
-    Diff string `json:"diff"`
+	Comments       []string `json:"comments"`
+	Command        string   `json:"command"`
+	ExpectedOutput string   `json:"expected_output"`
+	ActualOutput   string   `json:"actual_output"`
+	Diff           string   `json:"diff"`
 }
 
 var (
@@ -63,7 +63,7 @@ func NewFromRawT(rawT []Line) TestFile {
 			if testCase != nil {
 				t.Tests = append(t.Tests, *testCase)
 			}
-            match := ParseTestCaseLine.FindStringSubmatch(line.Line())
+			match := ParseTestCaseLine.FindStringSubmatch(line.Line())
 			testCase = &TestCase{Name: match[1]}
 			if meta != nil {
 				testCase.Metadata = *meta
@@ -96,62 +96,62 @@ func NewFromRawT(rawT []Line) TestFile {
 }
 
 func (t *TestFile) ConvertToLines(mode string) []Line {
-    lines := []Line{}
+	lines := []Line{}
 
-    // add file comments
-    for _, c := range(t.Comments) {
-        lines = append(lines, &CommentLine{c})
-    }
+	// add file comments
+	for _, c := range t.Comments {
+		lines = append(lines, &CommentLine{c})
+	}
 
 	for _, testCase := range t.Tests {
-        // add test-case metadata
-        if testCase.Metadata != nil {
-            lines = append(lines, &MetaCommentLine{"# meta"})
-            for k, v := range(testCase.Metadata) {
-                lines = append(lines, &MetaCommentLine{"# " + k + ": " + v})
-            }
-        }
+		// add test-case metadata
+		if testCase.Metadata != nil {
+			lines = append(lines, &MetaCommentLine{"# meta"})
+			for k, v := range testCase.Metadata {
+				lines = append(lines, &MetaCommentLine{"# " + k + ": " + v})
+			}
+		}
 
-        // add test-case line
-        lines = append(lines, &TestCaseLine{testCase.Name + ":"})
+		// add test-case line
+		lines = append(lines, &TestCaseLine{testCase.Name + ":"})
 		for _, testStep := range testCase.Steps {
-            // add test-step comment
-            for _, c := range(testStep.Comments) {
-                lines = append(lines, &CommentLine{c})
-            }
+			// add test-step comment
+			for _, c := range testStep.Comments {
+				lines = append(lines, &CommentLine{c})
+			}
 
-            // add test-command
-            for idx, l := range(strings.Split(testStep.Command, "\n")) {
-                if idx == 0 {
-                    lines = append(lines, &CommandLine{"  $ " + l})
-                } else {
-                    lines = append(lines, &CommandLine{"  > " + l})
-                }
-            }
+			// add test-command
+			for idx, l := range strings.Split(testStep.Command, "\n") {
+				if idx == 0 {
+					lines = append(lines, &CommandLine{"  $ " + l})
+				} else {
+					lines = append(lines, &CommandLine{"  > " + l})
+				}
+			}
 
-            if mode == "diff" {
-                // add diff
-                if testStep.Diff != "" {
-                    for _, l := range(strings.Split(testStep.Diff, "\n")) {
-                        lines = append(lines, &OutputLine{"  " + l})
-                    }
-                }
-            } else if mode == "actual" {
-                // add actual output
-                if testStep.ActualOutput != "" {
-                    for _, l := range(strings.Split(testStep.ActualOutput, "\n")) {
-                        lines = append(lines, &OutputLine{"  " + l})
-                    }
-                }
-            } else {
-                // add output
-                if testStep.ExpectedOutput != "" {
-                    for _, l := range(strings.Split(testStep.ExpectedOutput, "\n")) {
-                        lines = append(lines, &OutputLine{"  " + l})
-                    }
-                }
-            }
-        }
-    }
+			if mode == "diff" {
+				// add diff
+				if testStep.Diff != "" {
+					for _, l := range strings.Split(testStep.Diff, "\n") {
+						lines = append(lines, &OutputLine{"  " + l})
+					}
+				}
+			} else if mode == "actual" {
+				// add actual output
+				if testStep.ActualOutput != "" {
+					for _, l := range strings.Split(testStep.ActualOutput, "\n") {
+						lines = append(lines, &OutputLine{"  " + l})
+					}
+				}
+			} else {
+				// add output
+				if testStep.ExpectedOutput != "" {
+					for _, l := range strings.Split(testStep.ExpectedOutput, "\n") {
+						lines = append(lines, &OutputLine{"  " + l})
+					}
+				}
+			}
+		}
+	}
 	return lines
 }

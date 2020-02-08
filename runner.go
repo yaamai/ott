@@ -37,8 +37,8 @@ func (r *Runner) Run(testFile *TestFile) {
 			}
 			text, _ := difflib.GetUnifiedDiffString(diff)
 
-            testFile.Tests[testCaseIdx].Steps[testStepIdx].ActualOutput = actualOutput
-            testFile.Tests[testCaseIdx].Steps[testStepIdx].Diff = text
+			testFile.Tests[testCaseIdx].Steps[testStepIdx].ActualOutput = actualOutput
+			testFile.Tests[testCaseIdx].Steps[testStepIdx].Diff = text
 			zap.S().Debug(text)
 		}
 	}

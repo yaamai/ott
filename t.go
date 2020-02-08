@@ -16,14 +16,14 @@ var (
 	OutputLineRegex          = regexp.MustCompile(`^  [^>$].*$`)
 )
 
-type ParseRawTContext struct {
+type ParseTContext struct {
 	t               []Line
 	metaCommentLine *MetaCommentLine
 	testCaseLine    *TestCaseLine
 	commandLine     *CommandLine
 }
 
-func (c ParseRawTContext) isContext(context string) bool {
+func (c ParseTContext) isContext(context string) bool {
 	switch context {
 	case "":
 		return true
@@ -38,13 +38,13 @@ func (c ParseRawTContext) isContext(context string) bool {
 	}
 }
 
-func parseCommentLine(line string, context *ParseRawTContext) error {
+func parseCommentLine(line string, context *ParseTContext) error {
 	c := CommentLine{line}
 	context.t = append(context.t, &c)
 	return nil
 }
 
-func parseMetaCommentLine(line string, context *ParseRawTContext) error {
+func parseMetaCommentLine(line string, context *ParseTContext) error {
 	c := MetaCommentLine{line}
 
 	context.t = append(context.t, &c)
@@ -52,46 +52,46 @@ func parseMetaCommentLine(line string, context *ParseRawTContext) error {
 	return nil
 }
 
-func parseTestCaseLine(line string, context *ParseRawTContext) error {
+func parseTestCaseLine(line string, context *ParseTContext) error {
 	c := TestCaseLine{line}
 	context.t = append(context.t, &c)
 	context.testCaseLine = &c
 	return nil
 }
 
-func parseTestCaseCommentLine(line string, context *ParseRawTContext) error {
+func parseTestCaseCommentLine(line string, context *ParseTContext) error {
 	c := TestCaseCommentLine{line}
 	context.t = append(context.t, &c)
 	return nil
 }
 
-func parseCommandLine(line string, context *ParseRawTContext) error {
+func parseCommandLine(line string, context *ParseTContext) error {
 	c := CommandLine{line}
 	context.t = append(context.t, &c)
 	context.commandLine = &c
 	return nil
 }
 
-func parseOutputLine(line string, context *ParseRawTContext) error {
+func parseOutputLine(line string, context *ParseTContext) error {
 	c := OutputLine{line}
 	context.t = append(context.t, &c)
 	return nil
 }
 
-func parseCommandContinueLine(line string, context *ParseRawTContext) error {
+func parseCommandContinueLine(line string, context *ParseTContext) error {
 	c := CommandContinueLine{line}
 	context.t = append(context.t, &c)
 	return nil
 }
 
-func ParseRawT(stream io.Reader) ([]Line, error) {
+func ParseT(stream io.Reader) ([]Line, error) {
 	scanner := bufio.NewScanner(stream)
 
-	context := ParseRawTContext{t: []Line{}}
+	context := ParseTContext{t: []Line{}}
 	parseHandler := []struct {
 		contextCondition string
 		lineCondition    func(string) bool
-		f                func(string, *ParseRawTContext) error
+		f                func(string, *ParseTContext) error
 	}{
 		{"command", OutputLineRegex.MatchString, parseOutputLine},
 		{"command", CommandContinueLineRegex.MatchString, parseCommandContinueLine},

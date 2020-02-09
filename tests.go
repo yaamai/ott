@@ -169,7 +169,21 @@ func (t *TestFile) ConvertToLines(mode string) []Line {
 		lines = append(lines, &CommentLine{c})
 	}
 
+	// add test-file metadata
+	if t.Metadata != nil {
+		lines = append(lines, &MetaCommentLine{"# meta"})
+		for k, v := range t.Metadata {
+			lines = append(lines, &MetaCommentLine{"# " + k + ": " + v})
+		}
+		lines = append(lines, &EmptyLine{""})
+	}
+
 	for _, testCase := range t.Tests {
+		// add test-case comment
+		for _, c := range testCase.Comments {
+			lines = append(lines, &CommentLine{c})
+		}
+
 		// add test-case metadata
 		if testCase.Metadata != nil {
 			lines = append(lines, &MetaCommentLine{"# meta"})

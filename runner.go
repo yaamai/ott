@@ -127,7 +127,7 @@ func injectTestCase(testFileList []*TestFile) []*TestFile {
 	injectedTestFiles := []*TestFile{}
 
 	// inject per-run testcase as new TestFile
-	setupRunTestFile := TestFile{Name: "generated"}
+	setupRunTestFile := TestFile{Name: "generated", Generated: true}
 	appendGeneratedTestCase(&setupRunTestFile.Tests, setupTestCases[0])
 	injectedTestFiles = append(injectedTestFiles, &setupRunTestFile)
 
@@ -153,7 +153,7 @@ func injectTestCase(testFileList []*TestFile) []*TestFile {
 		injectedTestFiles = append(injectedTestFiles, testFile)
 	}
 
-	teardownRunTestFile := TestFile{Name: "generated"}
+	teardownRunTestFile := TestFile{Name: "generated", Generated: true}
 	appendGeneratedTestCase(&teardownRunTestFile.Tests, teardownTestCases[0])
 	injectedTestFiles = append(injectedTestFiles, &teardownRunTestFile)
 
@@ -180,5 +180,5 @@ func (r *Runner) RunMultiple(testFileList []*TestFile) []*TestFile {
 		r.run(testFile)
 	}
 
-    return injectedTestFiles
+	return injectedTestFiles
 }

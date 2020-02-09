@@ -7,10 +7,12 @@ import (
 )
 
 type TestFile struct {
-	Name     string            `json:"name"`
-	Comments []string          `json:"comments"`
-	Metadata map[string]string `json:"metadata"`
-	Tests    []*TestCase       `json:"tests"`
+	Name      string            `json:"name"`
+	Comments  []string          `json:"comments"`
+	Metadata  map[string]string `json:"metadata"`
+	Tests     []*TestCase       `json:"tests"`
+	Generated bool              `json:"generated"`
+	NoInject  bool              `json:"no_inject"`
 }
 
 type TestCase struct {

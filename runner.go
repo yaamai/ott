@@ -100,38 +100,67 @@ func getMarkedPrefixedTestCase(testFile *TestFile, prefixes ...string) [][]*Test
 	return testCasesList
 }
 
-func injectTestCase(testFile *TestFile) {
+func getHookTestCases(testFileList []*TestFile) ([][]*TestCase, [][]*TestCase) {
 	// TODO: consider test-cases as container/list
-	setupTestCases := getMarkedPrefixedTestCase(testFile, "setup-per-run", "setup-per-file", "setup-per-case")
-	teardownTestCases := getMarkedPrefixedTestCase(testFile, "teardown-per-run", "teardown-per-file", "teardown-per-case")
-	zap.S().Debug("Injecting setup/teardown test-cases: ", setupTestCases, teardownTestCases)
+	setupTestCases := [][]*TestCase{[]*TestCase{}, []*TestCase{}, []*TestCase{}}
+	teardownTestCases := [][]*TestCase{[]*TestCase{}, []*TestCase{}, []*TestCase{}}
 
-	result := []*TestCase{}
-
-	// insert per-run,per-file testcase
-	// TODO: support multiple file
-	appendGeneratedTestCase(&result, setupTestCases[0])
-	appendGeneratedTestCase(&result, setupTestCases[1])
-
-	// insert per-csae
-	for _, targetTestCase := range testFile.Tests {
-		if targetTestCase.Generated || targetTestCase.NoInject {
-			continue
+	for _, testFile := range testFileList {
+		c := getMarkedPrefixedTestCase(testFile, "setup-per-run", "setup-per-file", "setup-per-case")
+		for idx, _ := range c {
+			setupTestCases[idx] = append(setupTestCases[idx], c[idx]...)
 		}
-		appendGeneratedTestCase(&result, setupTestCases[2])
-		result = append(result, targetTestCase)
-		appendGeneratedTestCase(&result, teardownTestCases[2])
+
+		c = getMarkedPrefixedTestCase(testFile, "teardown-per-run", "teardown-per-file", "teardown-per-case")
+		for idx, _ := range c {
+			teardownTestCases[idx] = append(teardownTestCases[idx], c[idx]...)
+		}
 	}
 
-	appendGeneratedTestCase(&result, teardownTestCases[1])
-	appendGeneratedTestCase(&result, teardownTestCases[0])
-
-	(*testFile).Tests = result
+	return setupTestCases, teardownTestCases
 }
 
-func (r *Runner) Run(testFile *TestFile) {
+func injectTestCase(testFileList []*TestFile) []*TestFile {
+	setupTestCases, teardownTestCases := getHookTestCases(testFileList)
+	zap.S().Debug("Injecting setup/teardown test-cases: ", setupTestCases, teardownTestCases)
 
-	injectTestCase(testFile)
+	injectedTestFiles := []*TestFile{}
+
+	// inject per-run testcase as new TestFile
+	setupRunTestFile := TestFile{Name: "generated"}
+	appendGeneratedTestCase(&setupRunTestFile.Tests, setupTestCases[0])
+	injectedTestFiles = append(injectedTestFiles, &setupRunTestFile)
+
+	for _, testFile := range testFileList {
+		injectedTestCases := []*TestCase{}
+
+		// inject per-file test-cases
+		appendGeneratedTestCase(&injectedTestCases, setupTestCases[1])
+
+		// insert per-case
+		for _, targetTestCase := range testFile.Tests {
+			if targetTestCase.Generated || targetTestCase.NoInject {
+				continue
+			}
+			appendGeneratedTestCase(&injectedTestCases, setupTestCases[2])
+			injectedTestCases = append(injectedTestCases, targetTestCase)
+			appendGeneratedTestCase(&injectedTestCases, teardownTestCases[2])
+		}
+
+		appendGeneratedTestCase(&injectedTestCases, teardownTestCases[1])
+
+		testFile.Tests = injectedTestCases
+		injectedTestFiles = append(injectedTestFiles, testFile)
+	}
+
+	teardownRunTestFile := TestFile{Name: "generated"}
+	appendGeneratedTestCase(&teardownRunTestFile.Tests, teardownTestCases[0])
+	injectedTestFiles = append(injectedTestFiles, &teardownRunTestFile)
+
+	return injectedTestFiles
+}
+
+func (r *Runner) run(testFile *TestFile) {
 
 	zap.S().Info("Running test-file: ", testFile.Name)
 	for testCaseIdx, testCase := range testFile.Tests {
@@ -142,4 +171,14 @@ func (r *Runner) Run(testFile *TestFile) {
 		}
 		r.runTestCase(testFile.Tests[testCaseIdx])
 	}
+}
+
+func (r *Runner) RunMultiple(testFileList []*TestFile) []*TestFile {
+	injectedTestFiles := injectTestCase(testFileList)
+
+	for _, testFile := range injectedTestFiles {
+		r.run(testFile)
+	}
+
+    return injectedTestFiles
 }

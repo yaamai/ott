@@ -12,10 +12,10 @@ import (
 )
 
 var (
-	testFileName string
-	logLevelStr  string
-	outputMode   string
-	outputFormat string
+	testFileNameList []string
+	logLevelStr      string
+	outputMode       string
+	outputFormat     string
 )
 
 func initLog(level string) func() {
@@ -35,7 +35,34 @@ func initLog(level string) func() {
 	return undo
 }
 
-func main() {
+func parseTFiles(filenames []string) ([][]Line, []*TestFile) {
+	linesList := [][]Line{}
+	testFileList := []*TestFile{}
+
+	for _, filename := range filenames {
+		// parse t file
+		f, err := os.OpenFile(filename, os.O_RDONLY, 0755)
+		if err != nil {
+			zap.S().Fatal(err)
+			os.Exit(1)
+		}
+		defer f.Close()
+
+		lines, err := ParseT(f)
+		if err != nil {
+			zap.S().Fatal(err)
+			os.Exit(1)
+		}
+
+		testFile := NewFromRawT(filename, lines)
+		testFileList = append(testFileList, &testFile)
+		linesList = append(linesList, lines)
+	}
+
+	return linesList, testFileList
+}
+
+func parseFlags() {
 	// parse flags
 	flag.StringVar(&logLevelStr, "log", "warn", "log level")
 	flag.StringVar(&outputMode, "mode", "diff", "output mode (diff/actual/expected)")
@@ -45,45 +72,37 @@ func main() {
 	if flag.NArg() < 1 {
 		os.Exit(1)
 	}
-	testFileName = flag.Args()[0]
+	testFileNameList = flag.Args()
+}
 
+func main() {
+	// init flags and logger
+	parseFlags()
 	undo := initLog(logLevelStr)
 	defer undo()
 
-	// parse t file
-	f, err := os.OpenFile(testFileName, os.O_RDONLY, 0755)
-	if err != nil {
-		zap.S().Fatal(err)
-		os.Exit(1)
-	}
-	defer f.Close()
+	_, testFileList := parseTFiles(testFileNameList)
 
-	lines, err := ParseT(f)
-	if err != nil {
-		zap.S().Fatal(err)
-		os.Exit(1)
-	}
-
-	// run
-	testFile := NewFromRawT(testFileName, lines)
 	runner, err := NewRunner()
 	if err != nil {
 		zap.S().Fatal(err)
 		os.Exit(1)
 	}
-	runner.Run(&testFile)
+	resultFileList := runner.RunMultiple(testFileList)
 
 	// output
 	if outputFormat == "json" {
-		jsonBytes, err := json.Marshal(testFile)
+		jsonBytes, err := json.Marshal(resultFileList)
 		if err != nil {
 			zap.S().Fatal(err)
 		}
 		fmt.Println(string(jsonBytes))
 	} else {
 		zap.S().Info("Converting " + outputMode + "mode")
-		for _, l := range testFile.ConvertToLines(outputMode) {
-			fmt.Println(l.Line())
+		for _, f := range resultFileList {
+			for _, l := range f.ConvertToLines(outputMode) {
+				fmt.Println(l.Line())
+			}
 		}
 	}
 }

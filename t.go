@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"go.uber.org/zap"
 	"io"
 	"regexp"
@@ -129,4 +130,14 @@ func ParseT(stream io.Reader) ([]Line, error) {
 		}
 	}
 	return context.t, nil
+}
+
+type TFile []Line
+
+func (t TFile) MarshalJSON() ([]byte, error) {
+	m := []map[string]string{}
+	for _, l := range t {
+		m = append(m, map[string]string{"Type": l.Type(), "Line": l.Line()})
+	}
+	return json.Marshal(m)
 }

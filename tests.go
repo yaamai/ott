@@ -163,6 +163,17 @@ func NewFromRawT(name string, rawT []Line) TestFile {
 	return context.t
 }
 
+
+func contains(s []string, e string) bool {
+    for _, a := range s {
+        if a == e {
+            return true
+        }
+    }
+    return false
+}
+
+
 func (t *TestFile) ConvertToLines(mode string) []Line {
 	lines := []Line{}
 
@@ -211,21 +222,24 @@ func (t *TestFile) ConvertToLines(mode string) []Line {
 				}
 			}
 
-			if mode == "diff" {
-				// add diff
-				if testStep.Diff != "" {
-					for _, l := range strings.Split(testStep.Diff, "\n") {
-						lines = append(lines, &OutputLine{"  " + l})
-					}
-				}
-			} else if mode == "actual" {
+            modeList := strings.Split(mode, "+")
+            if contains(modeList, "actual") {
 				// add actual output
 				if testStep.ActualOutput != "" {
 					for _, l := range strings.Split(testStep.ActualOutput, "\n") {
 						lines = append(lines, &OutputLine{"  " + l})
 					}
 				}
-			} else {
+            }
+            if contains(modeList, "diff") {
+				// add diff
+				if testStep.Diff != "" {
+					for _, l := range strings.Split(testStep.Diff, "\n") {
+						lines = append(lines, &OutputLine{"  " + l})
+					}
+				}
+			}
+            if contains(modeList, "expected") {
 				// add output
 				if testStep.ExpectedOutput != "" {
 					for _, l := range strings.Split(testStep.ExpectedOutput, "\n") {

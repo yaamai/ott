@@ -34,7 +34,14 @@ func readPrompt(buffer *LockedBuffer) []byte {
 			return buf[:promptLen]
 		}
 
-		time.Sleep(1 * time.Millisecond)
+		// remove LF and strip DSR for alpine+busybox+sh
+		cleanedBuf := bytes.ReplaceAll(bytes.ReplaceAll(buf, LF, []byte{}), []byte{27, 91, 54, 110}, []byte{})
+		promptLen = len(cleanedBuf) / 2
+		if promptLen > 1 && bytes.Equal(cleanedBuf[:promptLen], cleanedBuf[promptLen:]) {
+			return buf[:promptLen]
+		}
+
+		time.Sleep(10 * time.Millisecond)
 	}
 	return nil
 }
@@ -46,7 +53,7 @@ func NewSession() (*Session, error) {
 	c := exec.Command("sh")
 
 	// launch and attach to pty
-	winsize := pty.Winsize{Rows: 10, Cols: 10}
+	winsize := pty.Winsize{Rows: 50, Cols: 50}
 	ptmx, err := pty.StartWithSize(c, &winsize)
 	if err != nil {
 		return nil, err

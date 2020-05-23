@@ -21,14 +21,13 @@ type SessionAdapter interface {
 }
 
 type Session struct {
-	ptmx   *os.File
-	buffer *LockedBuffer
+	ptmx    *os.File
+	buffer  *LockedBuffer
 	adapter SessionAdapter
 }
 
 func NewSession() (*Session, error) {
 	r := Session{}
-
 
 	// launch and attach to pty
 	c := exec.Command("sh")

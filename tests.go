@@ -26,8 +26,8 @@ type TestCase struct {
 
 type TestStep struct {
 	Comments       []string `json:"comments"`
-	Command        []string   `json:"command"`
-	ExpectedOutput []string   `json:"expected_output"`
+	Command        []string `json:"command"`
+	ExpectedOutput []string `json:"expected_output"`
 	ActualOutput   string   `json:"actual_output"`
 	Diff           string   `json:"diff"`
 }
@@ -163,16 +163,14 @@ func NewFromRawT(name string, rawT []Line) TestFile {
 	return context.t
 }
 
-
 func contains(s []string, e string) bool {
-    for _, a := range s {
-        if a == e {
-            return true
-        }
-    }
-    return false
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
-
 
 func (t *TestFile) ConvertToLines(mode string) []Line {
 	lines := []Line{}
@@ -222,16 +220,16 @@ func (t *TestFile) ConvertToLines(mode string) []Line {
 				}
 			}
 
-            modeList := strings.Split(mode, "+")
-            if contains(modeList, "actual") {
+			modeList := strings.Split(mode, "+")
+			if contains(modeList, "actual") {
 				// add actual output
 				if testStep.ActualOutput != "" {
 					for _, l := range strings.Split(testStep.ActualOutput, "\n") {
 						lines = append(lines, &OutputLine{"  " + l})
 					}
 				}
-            }
-            if contains(modeList, "diff") {
+			}
+			if contains(modeList, "diff") {
 				// add diff
 				if testStep.Diff != "" {
 					for _, l := range strings.Split(testStep.Diff, "\n") {
@@ -239,7 +237,7 @@ func (t *TestFile) ConvertToLines(mode string) []Line {
 					}
 				}
 			}
-            if contains(modeList, "expected") {
+			if contains(modeList, "expected") {
 				// add output
 				for _, l := range testStep.ExpectedOutput {
 					lines = append(lines, &OutputLine{"  " + l})

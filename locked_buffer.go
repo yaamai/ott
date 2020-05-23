@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"errors"
+	"go.uber.org/zap"
 	"sync"
 	"time"
-	"go.uber.org/zap"
 )
 
 type LockedBuffer struct {

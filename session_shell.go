@@ -6,13 +6,13 @@ import (
 )
 
 var (
-	SHELL_START_MARKER     = `###OTT-START###`
+	SHELL_START_MARKER       = `###OTT-START###`
 	SHELL_START_MARKER_BYTES = []byte(SHELL_START_MARKER)
-	SHELL_START_MARKER_CMD = []byte(`echo -n "` + SHELL_START_MARKER + `"; `)
-	SHELL_END_MARKER       = `###OTT-END###`
-	SHELL_END_MARKER_CMD   = []byte(`; echo -n "` + SHELL_END_MARKER + `"`)
-	SHELL_END_MARKER_BYTES = []byte(SHELL_END_MARKER)
-	LF               = []byte("\n")
+	SHELL_START_MARKER_CMD   = []byte(`echo -n "` + SHELL_START_MARKER + `"; `)
+	SHELL_END_MARKER         = `###OTT-END###`
+	SHELL_END_MARKER_CMD     = []byte(`; echo -n "` + SHELL_END_MARKER + `"`)
+	SHELL_END_MARKER_BYTES   = []byte(SHELL_END_MARKER)
+	LF                       = []byte("\n")
 )
 
 type ShellSession struct {

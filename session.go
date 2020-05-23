@@ -11,99 +11,27 @@ import (
 	"time"
 )
 
-var (
-	START_MARKER     = `###OTT-START###`
-	START_MARKER_CMD = []byte(`echo -n "` + START_MARKER + `"; `)
-	END_MARKER       = `###OTT-END###`
-	END_MARKER_CMD   = []byte(`; echo -n "` + END_MARKER + `"`)
-	LF               = []byte("\n")
-)
+type SessionAdapter interface {
+	GuessPrompt(*LockedBuffer, *os.File) []byte
+	GetPrompt() []byte
+	GetCmdline([]string) []byte
+	GetStartMarker([]string) []byte
+	GetEndMarker([]string) []byte
+	NormalizeOutput([]byte) []string
+}
 
 type Session struct {
 	ptmx   *os.File
 	buffer *LockedBuffer
-	prompt []byte
-}
-
-func readPrompt(buffer *LockedBuffer) []byte {
-	for retry := 0; retry < 10; retry += 1 {
-
-		buf := buffer.Bytes()
-		promptLen := len(buf) / 2
-		if promptLen > 1 && bytes.Equal(buf[:promptLen], buf[promptLen:]) {
-			return buf[:promptLen]
-		}
-
-		// remove LF and strip DSR for alpine+busybox+sh
-		cleanedBuf := bytes.ReplaceAll(bytes.ReplaceAll(buf, LF, []byte{}), []byte{27, 91, 54, 110}, []byte{})
-		promptLen = len(cleanedBuf) / 2
-		if promptLen > 1 && bytes.Equal(cleanedBuf[:promptLen], cleanedBuf[promptLen:]) {
-			return buf[:promptLen]
-		}
-
-		time.Sleep(10 * time.Millisecond)
-	}
-	return nil
-}
-
-
-func waitBufferStable(buffer *LockedBuffer) {
-	oldlen := buffer.Len()
-	count := 0
-	waitTime := 0
-	for retry := 0; retry < 100; retry += 1 {
-		l := buffer.Len()
-		if oldlen > 0 && count > 5 {
-			break
-		}
-		if l == oldlen {
-			count += 1
-		}
-		oldlen = l
-		time.Sleep(10 * time.Millisecond)
-		waitTime += 10
-	}
-
-	zap.S().Debug("Waited!", waitTime)
-}
-
-func guessPrompt(buffer *LockedBuffer, ptmx *os.File) []byte {
-	// wait first non-empty read, and wait continued data
-	waitBufferStable(buffer)
-	time.Sleep(10 * time.Millisecond)
-
-	// send LF
-	buffer.Reset()
-	ptmx.Write(LF)
-
-	// recv prompt
-	waitBufferStable(buffer)
-	firstPrompt := make([]byte, buffer.Len())
-	copy(firstPrompt, buffer.Bytes())
-
-	// re-send LF
-	buffer.Reset()
-	ptmx.Write(LF)
-
-	// recv prompt and compare
-	waitBufferStable(buffer)
-	secondPrompt := make([]byte, buffer.Len())
-	copy(secondPrompt, buffer.Bytes())
-
-	zap.S().Debug("prompt: ", bytes.Equal(firstPrompt, secondPrompt), firstPrompt, secondPrompt)
-	if bytes.Equal(firstPrompt, secondPrompt) {
-		return firstPrompt
-	}
-	return nil
+	adapter SessionAdapter
 }
 
 func NewSession() (*Session, error) {
 	r := Session{}
 
-	// prepare command
-	c := exec.Command("python")
 
 	// launch and attach to pty
+	c := exec.Command("sh")
 	winsize := pty.Winsize{Rows: 50, Cols: 50}
 	ptmx, err := pty.StartWithSize(c, &winsize)
 	if err != nil {
@@ -111,6 +39,7 @@ func NewSession() (*Session, error) {
 	}
 	terminal.MakeRaw(int(ptmx.Fd()))
 	r.ptmx = ptmx
+	r.adapter = &PythonSession{}
 
 	// prepare shell output buffer
 	buffer := new(LockedBuffer)
@@ -119,11 +48,10 @@ func NewSession() (*Session, error) {
 
 	// wait first prompt
 	go r.Reader()
-	prompt := guessPrompt(buffer, ptmx)
+	prompt := r.adapter.GuessPrompt(buffer, ptmx)
 	if prompt == nil {
 		return nil, errors.New("prompt wait timeout")
 	}
-	r.prompt = bytes.TrimSuffix(bytes.TrimPrefix(prompt, []byte("\r\n")), []byte("\r\n"))
 
 	return &r, nil
 }
@@ -146,19 +74,37 @@ func (s *Session) Cleanup() {
 }
 
 func (s *Session) GetPrompt() []byte {
-	return s.prompt
+	return s.adapter.GetPrompt()
 }
 
-func getMarkedCommand(cmd string) []byte {
-	cmdBytes := []byte(cmd)
+func guessPrompt(buffer *LockedBuffer, ptmx *os.File) []byte {
+	// wait first non-empty read, and wait continued data
+	buffer.WaitStable(100, time.Millisecond*10)
+	time.Sleep(10 * time.Millisecond)
 
-	result := make([]byte, 0)
-	result = append(result, START_MARKER_CMD...)
-	result = append(result, cmdBytes...)
-	result = append(result, END_MARKER_CMD...)
-	result = append(result, LF...) // generate marker output
+	// send LF
+	buffer.Reset()
+	ptmx.Write(LF)
 
-	return result
+	// recv prompt
+	buffer.WaitStable(100, time.Millisecond*10)
+	firstPrompt := make([]byte, buffer.Len())
+	copy(firstPrompt, buffer.Bytes())
+
+	// re-send LF
+	buffer.Reset()
+	ptmx.Write(LF)
+
+	// recv prompt and compare
+	buffer.WaitStable(100, time.Millisecond*10)
+	secondPrompt := make([]byte, buffer.Len())
+	copy(secondPrompt, buffer.Bytes())
+
+	zap.S().Debug("prompt: ", bytes.Equal(firstPrompt, secondPrompt), firstPrompt, secondPrompt)
+	if bytes.Equal(firstPrompt, secondPrompt) {
+		return firstPrompt
+	}
+	return nil
 }
 
 func getBytesArray(array []string) [][]byte {
@@ -183,20 +129,15 @@ func (s *Session) ExecuteCommand(cmdStrs []string) []string {
 	s.buffer.Reset()
 
 	// generate cmdline and wait-pattern
-	cmds := getBytesArray(cmdStrs)
-	cmdline := bytes.Join(cmds, []byte("\n"))
-	cmdline = append(cmdline, []byte("\n\n")...)
-	expectStartMarker := bytes.Join(cmds, []byte("\r\n... "))
-	expectStartMarker = append(expectStartMarker, []byte("\r\n")...)
-
+	cmdline := s.adapter.GetCmdline(cmdStrs)
+	startMarker := s.adapter.GetStartMarker(cmdStrs)
+	endMarker := s.adapter.GetEndMarker(cmdStrs)
 	s.ptmx.Write(cmdline)
-	zap.S().Debug("Execute: ", string(cmdline), cmdline, expectStartMarker)
+	zap.S().Debug("Execute: ", string(cmdline), cmdline)
+
 	for retry := 0; retry < 100; retry += 1 {
-		// output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
-		// output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
-		zap.S().Debug("Buf", s.buffer.Bytes())
-		output, err := s.buffer.ReadBetweenPattern(expectStartMarker, s.prompt)
-		zap.S().Debug("wait output", output, err)
+		output, err := s.buffer.ReadBetweenPattern(startMarker, endMarker)
+		zap.S().Debug("wait output", output, err, s.buffer.Bytes())
 		if err != nil {
 			return []string{}
 		}
@@ -204,7 +145,7 @@ func (s *Session) ExecuteCommand(cmdStrs []string) []string {
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
-		return getStringArray(bytes.Split(output, []byte("\r\n")))
+		return s.adapter.NormalizeOutput(output)
 	}
 	return []string{}
 }

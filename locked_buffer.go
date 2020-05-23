@@ -107,3 +107,23 @@ func (b *LockedBuffer) ReadBetweenPattern(startPattern, endPattern []byte) ([]by
 	// TODO: read endPattern
 	return resultBuf, nil
 }
+
+func (b *LockedBuffer) WaitStable(retryMax int, wait time.Duration) (int64, error) {
+	oldlen := b.Len()
+	count := 0
+	waitTime := int64(0)
+	for retry := 0; retry < retryMax; retry += 1 {
+		l := b.Len()
+		if oldlen > 0 && count > 5 {
+			return waitTime, nil
+		}
+		if l == oldlen {
+			count += 1
+		}
+		oldlen = l
+		time.Sleep(wait)
+		waitTime += wait.Milliseconds()
+	}
+
+	return waitTime, errors.New("buffer wait timeout")
+}

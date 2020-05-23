@@ -16,6 +16,8 @@ var (
 	logLevelStr      string
 	outputMode       string
 	outputFormat     string
+	sessionMode      string
+	sessionCmd       string
 )
 
 func initLog(level string) func() {
@@ -67,6 +69,8 @@ func parseFlags() {
 	flag.StringVar(&logLevelStr, "log", "warn", "log level")
 	flag.StringVar(&outputMode, "mode", "diff", "output mode (diff/actual/expected)")
 	flag.StringVar(&outputFormat, "format", "text", "output format (text/json)")
+	flag.StringVar(&sessionMode, "session-mode", "shell", "session parse mode (shell/python)")
+	flag.StringVar(&sessionCmd, "session-cmd", "sh", "session command")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -83,7 +87,7 @@ func main() {
 
 	_, testFileList := parseTFiles(testFileNameList)
 
-	runner, err := NewRunner()
+	runner, err := NewRunner(sessionCmd, sessionMode)
 	if err != nil {
 		zap.S().Fatal(err)
 		os.Exit(1)

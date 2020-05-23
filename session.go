@@ -11,6 +11,15 @@ import (
 	"time"
 )
 
+const (
+	INTERNAL_BUFFER_SIZE = 65536
+	READ_BUFFER_SIZE = 4096
+	PROMPT_RETRY = 100
+	PROMPT_RETRY_WAIT = 10
+	CMD_EXECUTE_RETRY = 100
+	CMD_EXECUTE_RETRY_WAIT = 10
+)
+
 type SessionAdapter interface {
 	GuessPrompt(*LockedBuffer, *os.File) []byte
 	GetPrompt() []byte
@@ -26,23 +35,37 @@ type Session struct {
 	adapter SessionAdapter
 }
 
-func NewSession() (*Session, error) {
+func getSessionAdapter(mode string) SessionAdapter {
+	switch mode {
+	case "shell":
+		return &ShellSession{}
+	case "python":
+		return &PythonSession{}
+	}
+	return nil
+}
+
+func NewSession(cmd, mode string) (*Session, error) {
 	r := Session{}
 
 	// launch and attach to pty
-	c := exec.Command("sh")
-	winsize := pty.Winsize{Rows: 50, Cols: 50}
+	c := exec.Command(cmd)
+	winsize := pty.Winsize{Cols: 80, Rows: 24}
 	ptmx, err := pty.StartWithSize(c, &winsize)
 	if err != nil {
 		return nil, err
 	}
 	terminal.MakeRaw(int(ptmx.Fd()))
 	r.ptmx = ptmx
-	r.adapter = &ShellSession{}
+
+	r.adapter = getSessionAdapter(mode)
+	if r.adapter == nil {
+		return nil, errors.New("Unsupported mode specified")
+	}
 
 	// prepare shell output buffer
 	buffer := new(LockedBuffer)
-	buffer.Grow(4096)
+	buffer.Grow(INTERNAL_BUFFER_SIZE)
 	r.buffer = buffer
 
 	// wait first prompt
@@ -57,7 +80,7 @@ func NewSession() (*Session, error) {
 
 func (s *Session) Reader() {
 	// TODO: escape infinit for loop
-	b := make([]byte, 1024)
+	b := make([]byte, READ_BUFFER_SIZE)
 	for {
 		l, err := s.ptmx.Read(b)
 		zap.S().Debug("read from pty", l, err, b[:l], string(b[:l]))
@@ -78,14 +101,14 @@ func (s *Session) ExecuteCommand(cmdStrs []string) []string {
 	s.ptmx.Write(cmdline)
 	zap.S().Debug("Execute: ", string(cmdline), cmdline)
 
-	for retry := 0; retry < 100; retry += 1 {
+	for retry := 0; retry < CMD_EXECUTE_RETRY; retry += 1 {
 		output, err := s.buffer.ReadBetweenPattern(startMarker, endMarker)
-		zap.S().Debug("wait output", output, err, s.buffer.Bytes())
+		zap.S().Debug("wait output", output, string(output), err, s.buffer.Bytes())
 		if err != nil {
 			return []string{}
 		}
 		if output == nil && err == nil {
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(CMD_EXECUTE_RETRY_WAIT * time.Millisecond)
 			continue
 		}
 		return s.adapter.NormalizeOutput(output)
@@ -103,15 +126,15 @@ func (s *Session) GetPrompt() []byte {
 
 func guessPrompt(buffer *LockedBuffer, ptmx *os.File) []byte {
 	// wait first non-empty read, and wait continued data
-	buffer.WaitStable(100, time.Millisecond*10)
-	time.Sleep(10 * time.Millisecond)
+	buffer.WaitStable(PROMPT_RETRY, PROMPT_RETRY_WAIT*time.Millisecond)
+	time.Sleep(PROMPT_RETRY_WAIT*time.Millisecond)
 
 	// send LF
 	buffer.Reset()
 	ptmx.Write(LF)
 
 	// recv prompt
-	buffer.WaitStable(100, time.Millisecond*10)
+	buffer.WaitStable(PROMPT_RETRY, PROMPT_RETRY_WAIT*time.Millisecond)
 	firstPrompt := make([]byte, buffer.Len())
 	copy(firstPrompt, buffer.Bytes())
 
@@ -120,7 +143,7 @@ func guessPrompt(buffer *LockedBuffer, ptmx *os.File) []byte {
 	ptmx.Write(LF)
 
 	// recv prompt and compare
-	buffer.WaitStable(100, time.Millisecond*10)
+	buffer.WaitStable(PROMPT_RETRY, PROMPT_RETRY_WAIT*time.Millisecond)
 	secondPrompt := make([]byte, buffer.Len())
 	copy(secondPrompt, buffer.Bytes())
 

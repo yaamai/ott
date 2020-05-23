@@ -10,8 +10,8 @@ type Runner struct {
 	session *Session
 }
 
-func NewRunner() (*Runner, error) {
-	sess, err := NewSession()
+func NewRunner(cmd, mode string) (*Runner, error) {
+	sess, err := NewSession(cmd, mode)
 	if err != nil {
 		return nil, err
 	}

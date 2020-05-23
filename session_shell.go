@@ -34,7 +34,7 @@ func (s *ShellSession) GetCmdline(cmdStrs []string) []byte {
 	cmdline := make([]byte, 0)
 
 	cmdline = append(cmdline, SHELL_START_MARKER_CMD...)
-	cmdline = append(cmdline, bytes.Join(cmds, []byte("\n"))...)
+	cmdline = append(cmdline, bytes.Join(cmds, LF)...)
 	cmdline = append(cmdline, SHELL_END_MARKER_CMD...)
 	cmdline = append(cmdline, LF...) // generate marker output
 

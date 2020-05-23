@@ -40,5 +40,5 @@ func (s *PythonSession) GetEndMarker(_ []string) []byte {
 }
 
 func (s *PythonSession) NormalizeOutput(output []byte) []string {
-	return getStringArray(bytes.Split(output, []byte("\r\n")))
+	return getStringArray(bytes.Split(output, []byte("\n")))
 }

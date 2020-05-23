@@ -39,7 +39,7 @@ func NewSession() (*Session, error) {
 	}
 	terminal.MakeRaw(int(ptmx.Fd()))
 	r.ptmx = ptmx
-	r.adapter = &PythonSession{}
+	r.adapter = &ShellSession{}
 
 	// prepare shell output buffer
 	buffer := new(LockedBuffer)
@@ -67,6 +67,31 @@ func (s *Session) Reader() {
 		}
 		s.buffer.Write(b[:l])
 	}
+}
+
+func (s *Session) ExecuteCommand(cmdStrs []string) []string {
+	s.buffer.Reset()
+
+	// generate cmdline and wait-pattern
+	cmdline := s.adapter.GetCmdline(cmdStrs)
+	startMarker := s.adapter.GetStartMarker(cmdStrs)
+	endMarker := s.adapter.GetEndMarker(cmdStrs)
+	s.ptmx.Write(cmdline)
+	zap.S().Debug("Execute: ", string(cmdline), cmdline)
+
+	for retry := 0; retry < 100; retry += 1 {
+		output, err := s.buffer.ReadBetweenPattern(startMarker, endMarker)
+		zap.S().Debug("wait output", output, err, s.buffer.Bytes())
+		if err != nil {
+			return []string{}
+		}
+		if output == nil && err == nil {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		return s.adapter.NormalizeOutput(output)
+	}
+	return []string{}
 }
 
 func (s *Session) Cleanup() {
@@ -123,29 +148,4 @@ func getStringArray(array [][]byte) []string {
 	}
 
 	return stringArray
-}
-
-func (s *Session) ExecuteCommand(cmdStrs []string) []string {
-	s.buffer.Reset()
-
-	// generate cmdline and wait-pattern
-	cmdline := s.adapter.GetCmdline(cmdStrs)
-	startMarker := s.adapter.GetStartMarker(cmdStrs)
-	endMarker := s.adapter.GetEndMarker(cmdStrs)
-	s.ptmx.Write(cmdline)
-	zap.S().Debug("Execute: ", string(cmdline), cmdline)
-
-	for retry := 0; retry < 100; retry += 1 {
-		output, err := s.buffer.ReadBetweenPattern(startMarker, endMarker)
-		zap.S().Debug("wait output", output, err, s.buffer.Bytes())
-		if err != nil {
-			return []string{}
-		}
-		if output == nil && err == nil {
-			time.Sleep(10 * time.Millisecond)
-			continue
-		}
-		return s.adapter.NormalizeOutput(output)
-	}
-	return []string{}
 }

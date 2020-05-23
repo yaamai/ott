@@ -2,49 +2,53 @@ package main
 
 import (
 	"bytes"
-	"time"
+	"os"
 )
 
 var (
-	START_MARKER     = `###OTT-START###`
-	START_MARKER_CMD = []byte(`echo -n "` + START_MARKER + `"; `)
-	END_MARKER       = `###OTT-END###`
-	END_MARKER_CMD   = []byte(`; echo -n "` + END_MARKER + `"`)
+	SHELL_START_MARKER     = `###OTT-START###`
+	SHELL_START_MARKER_BYTES = []byte(SHELL_START_MARKER)
+	SHELL_START_MARKER_CMD = []byte(`echo -n "` + SHELL_START_MARKER + `"; `)
+	SHELL_END_MARKER       = `###OTT-END###`
+	SHELL_END_MARKER_CMD   = []byte(`; echo -n "` + SHELL_END_MARKER + `"`)
+	SHELL_END_MARKER_BYTES = []byte(SHELL_END_MARKER)
 	LF               = []byte("\n")
 )
 
-func readPrompt(buffer *LockedBuffer) []byte {
-	for retry := 0; retry < 10; retry += 1 {
-
-		buf := buffer.Bytes()
-		promptLen := len(buf) / 2
-		if promptLen > 1 && bytes.Equal(buf[:promptLen], buf[promptLen:]) {
-			return buf[:promptLen]
-		}
-
-		// remove LF and strip DSR for alpine+busybox+sh
-		cleanedBuf := bytes.ReplaceAll(bytes.ReplaceAll(buf, LF, []byte{}), []byte{27, 91, 54, 110}, []byte{})
-		promptLen = len(cleanedBuf) / 2
-		if promptLen > 1 && bytes.Equal(cleanedBuf[:promptLen], cleanedBuf[promptLen:]) {
-			return buf[:promptLen]
-		}
-
-		time.Sleep(10 * time.Millisecond)
-	}
-	return nil
+type ShellSession struct {
+	prompt []byte
 }
 
-func getMarkedCommand(cmd string) []byte {
-	cmdBytes := []byte(cmd)
-
-	result := make([]byte, 0)
-	result = append(result, START_MARKER_CMD...)
-	result = append(result, cmdBytes...)
-	result = append(result, END_MARKER_CMD...)
-	result = append(result, LF...) // generate marker output
-
-	return result
+func (s *ShellSession) GuessPrompt(buffer *LockedBuffer, ptmx *os.File) []byte {
+	prompt := guessPrompt(buffer, ptmx)
+	s.prompt = prompt
+	return prompt
 }
 
-		// output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
-		// output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
+func (s *ShellSession) GetPrompt() []byte {
+	return s.prompt
+}
+
+func (s *ShellSession) GetCmdline(cmdStrs []string) []byte {
+	cmds := getBytesArray(cmdStrs)
+	cmdline := make([]byte, 0)
+
+	cmdline = append(cmdline, SHELL_START_MARKER_CMD...)
+	cmdline = append(cmdline, bytes.Join(cmds, []byte("\n"))...)
+	cmdline = append(cmdline, SHELL_END_MARKER_CMD...)
+	cmdline = append(cmdline, LF...) // generate marker output
+
+	return cmdline
+}
+
+func (s *ShellSession) GetStartMarker(cmdStrs []string) []byte {
+	return SHELL_START_MARKER_BYTES
+}
+
+func (s *ShellSession) GetEndMarker(_ []string) []byte {
+	return SHELL_END_MARKER_BYTES
+}
+
+func (s *ShellSession) NormalizeOutput(output []byte) []string {
+	return getStringArray(bytes.Split(output, []byte("\r\n")))
+}

@@ -11,6 +11,7 @@ type PythonSession struct {
 
 func (s *PythonSession) GuessPrompt(buffer *LockedBuffer, ptmx *os.File) []byte {
 	prompt := guessPrompt(buffer, ptmx)
+	prompt = bytes.TrimSuffix(bytes.TrimPrefix(prompt, []byte("\r\n")), []byte("\r\n"))
 	s.prompt = prompt
 	return prompt
 }

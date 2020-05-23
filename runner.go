@@ -34,9 +34,17 @@ func (r *Runner) runTestCase(testCase *TestCase) {
 	for testStepIdx, testStep := range testCase.Steps {
 		zap.S().Debug("Running test-step: ", testStep.Command)
 		zap.S().Debug("                 : ", testStep.ExpectedOutput)
-		actualOutput := r.session.ExecuteCommand(testStep.Command)
+
+		// session, tests-parser parse outputs to string-array.
+		// diff perfoms with "\n" joined
+		expectOutput := strings.Join(testStep.ExpectedOutput, "\n")
+		actualOutput := strings.Join(r.session.ExecuteCommand(testStep.Command), "\n")
+		// "t-file" can't represent new-line at end. (currently)
+		// suffix is "\n" only (output joined above)
+		actualOutput = strings.TrimSuffix(actualOutput, "\n")
+
 		diff := difflib.UnifiedDiff{
-			A:        difflib.SplitLines(testStep.ExpectedOutput),
+			A:        difflib.SplitLines(expectOutput),
 			B:        difflib.SplitLines(actualOutput),
 			FromFile: "Expected",
 			ToFile:   "Output",

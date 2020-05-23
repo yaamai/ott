@@ -123,7 +123,7 @@ func NewSession() (*Session, error) {
 	if prompt == nil {
 		return nil, errors.New("prompt wait timeout")
 	}
-	r.prompt = prompt
+	r.prompt = bytes.TrimSuffix(bytes.TrimPrefix(prompt, []byte("\r\n")), []byte("\r\n"))
 
 	return &r, nil
 }
@@ -161,29 +161,50 @@ func getMarkedCommand(cmd string) []byte {
 	return result
 }
 
-func (s *Session) ExecuteCommand(cmd string) string {
-	s.buffer.Reset()
-	cmdline := []byte(cmd+"\n")
-	zap.S().Debug("Write: ", cmdline)
-	s.ptmx.Write(cmdline)
+func getBytesArray(array []string) [][]byte {
+	bytesArray := [][]byte{}
+	for idx, _ := range array {
+		bytesArray = append(bytesArray, []byte(array[idx]))
+	}
 
-	zap.S().Debug("Write: ", bytes.ReplaceAll(cmdline, []byte("\n"), []byte("\r\n... ")))
-	cmdline = bytes.ReplaceAll(cmdline, []byte("\n"), []byte("\r\n... "))
-	s.ptmx.Write(LF)
+	return bytesArray
+}
+
+func getStringArray(array [][]byte) []string {
+	stringArray := []string{}
+	for idx, _ := range array {
+		stringArray = append(stringArray, string(array[idx]))
+	}
+
+	return stringArray
+}
+
+func (s *Session) ExecuteCommand(cmdStrs []string) []string {
+	s.buffer.Reset()
+
+	// generate cmdline and wait-pattern
+	cmds := getBytesArray(cmdStrs)
+	cmdline := bytes.Join(cmds, []byte("\n"))
+	cmdline = append(cmdline, []byte("\n\n")...)
+	expectStartMarker := bytes.Join(cmds, []byte("\r\n... "))
+	expectStartMarker = append(expectStartMarker, []byte("\r\n")...)
+
+	s.ptmx.Write(cmdline)
+	zap.S().Debug("Execute: ", string(cmdline), cmdline, expectStartMarker)
 	for retry := 0; retry < 100; retry += 1 {
 		// output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
 		// output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
 		zap.S().Debug("Buf", s.buffer.Bytes())
-		output, err := s.buffer.ReadBetweenPattern(cmdline, s.prompt)
+		output, err := s.buffer.ReadBetweenPattern(expectStartMarker, s.prompt)
 		zap.S().Debug("wait output", output, err)
 		if err != nil {
-			return ""
+			return []string{}
 		}
 		if output == nil && err == nil {
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
-		return string(output)
+		return getStringArray(bytes.Split(output, []byte("\r\n")))
 	}
-	return ""
+	return []string{}
 }

@@ -26,8 +26,8 @@ type TestCase struct {
 
 type TestStep struct {
 	Comments       []string `json:"comments"`
-	Command        string   `json:"command"`
-	ExpectedOutput string   `json:"expected_output"`
+	Command        []string   `json:"command"`
+	ExpectedOutput []string   `json:"expected_output"`
 	ActualOutput   string   `json:"actual_output"`
 	Diff           string   `json:"diff"`
 }
@@ -99,7 +99,7 @@ func handleCommandLine(context *ParseTestsContext, c *CommandLine) {
 	context.testStep = &TestStep{}
 	context.testCase.Steps = append(context.testCase.Steps, context.testStep)
 	match := ParseCommandLine.FindStringSubmatch(c.Line())
-	context.testStep.Command = match[1]
+	context.testStep.Command = []string{match[1]}
 	if len(context.comments) != 0 {
 		context.testStep.Comments = context.comments
 		context.comments = []string{}
@@ -110,14 +110,14 @@ func handleOutputLine(context *ParseTestsContext, c *OutputLine) {
 	zap.S().Debug("OutputLine:", c.Line())
 
 	match := ParseOutputLine.FindStringSubmatch(c.Line())
-	context.testStep.ExpectedOutput += match[1] + "\n"
+	context.testStep.ExpectedOutput = append(context.testStep.ExpectedOutput, match[1])
 }
 
 func handleCommandContinueLine(context *ParseTestsContext, c *CommandContinueLine) {
 	zap.S().Debug("CommandContinueLine:", c.Line())
 
 	match := ParseCommandLine.FindStringSubmatch(c.Line())
-	context.testStep.Command += "\n" + match[1]
+	context.testStep.Command = append(context.testStep.Command, match[1])
 }
 
 func callHandler(context *ParseTestsContext, rawLine Line) {
@@ -214,7 +214,7 @@ func (t *TestFile) ConvertToLines(mode string) []Line {
 			}
 
 			// add test-command
-			for idx, l := range strings.Split(testStep.Command, "\n") {
+			for idx, l := range testStep.Command {
 				if idx == 0 {
 					lines = append(lines, &CommandLine{"  $ " + l})
 				} else {
@@ -241,10 +241,8 @@ func (t *TestFile) ConvertToLines(mode string) []Line {
 			}
             if contains(modeList, "expected") {
 				// add output
-				if testStep.ExpectedOutput != "" {
-					for _, l := range strings.Split(testStep.ExpectedOutput, "\n") {
-						lines = append(lines, &OutputLine{"  " + l})
-					}
+				for _, l := range testStep.ExpectedOutput {
+					lines = append(lines, &OutputLine{"  " + l})
 				}
 			}
 		}

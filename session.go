@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	INTERNAL_BUFFER_SIZE = 65536
-	READ_BUFFER_SIZE = 4096
-	PROMPT_RETRY = 100
-	PROMPT_RETRY_WAIT = 10
-	CMD_EXECUTE_RETRY = 100
+	INTERNAL_BUFFER_SIZE   = 65536
+	READ_BUFFER_SIZE       = 4096
+	PROMPT_RETRY           = 100
+	PROMPT_RETRY_WAIT      = 10
+	CMD_EXECUTE_RETRY      = 100
 	CMD_EXECUTE_RETRY_WAIT = 10
 )
 
@@ -127,7 +127,7 @@ func (s *Session) GetPrompt() []byte {
 func guessPrompt(buffer *LockedBuffer, ptmx *os.File) []byte {
 	// wait first non-empty read, and wait continued data
 	buffer.WaitStable(PROMPT_RETRY, PROMPT_RETRY_WAIT*time.Millisecond)
-	time.Sleep(PROMPT_RETRY_WAIT*time.Millisecond)
+	time.Sleep(PROMPT_RETRY_WAIT * time.Millisecond)
 
 	// send LF
 	buffer.Reset()

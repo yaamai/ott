@@ -46,11 +46,62 @@ func readPrompt(buffer *LockedBuffer) []byte {
 	return nil
 }
 
+
+func waitBufferStable(buffer *LockedBuffer) {
+	oldlen := buffer.Len()
+	count := 0
+	waitTime := 0
+	for retry := 0; retry < 100; retry += 1 {
+		l := buffer.Len()
+		if oldlen > 0 && count > 5 {
+			break
+		}
+		if l == oldlen {
+			count += 1
+		}
+		oldlen = l
+		time.Sleep(10 * time.Millisecond)
+		waitTime += 10
+	}
+
+	zap.S().Debug("Waited!", waitTime)
+}
+
+func guessPrompt(buffer *LockedBuffer, ptmx *os.File) []byte {
+	// wait first non-empty read, and wait continued data
+	waitBufferStable(buffer)
+	time.Sleep(10 * time.Millisecond)
+
+	// send LF
+	buffer.Reset()
+	ptmx.Write(LF)
+
+	// recv prompt
+	waitBufferStable(buffer)
+	firstPrompt := make([]byte, buffer.Len())
+	copy(firstPrompt, buffer.Bytes())
+
+	// re-send LF
+	buffer.Reset()
+	ptmx.Write(LF)
+
+	// recv prompt and compare
+	waitBufferStable(buffer)
+	secondPrompt := make([]byte, buffer.Len())
+	copy(secondPrompt, buffer.Bytes())
+
+	zap.S().Debug("prompt: ", bytes.Equal(firstPrompt, secondPrompt), firstPrompt, secondPrompt)
+	if bytes.Equal(firstPrompt, secondPrompt) {
+		return firstPrompt
+	}
+	return nil
+}
+
 func NewSession() (*Session, error) {
 	r := Session{}
 
 	// prepare command
-	c := exec.Command("sh")
+	c := exec.Command("python")
 
 	// launch and attach to pty
 	winsize := pty.Winsize{Rows: 50, Cols: 50}
@@ -68,8 +119,7 @@ func NewSession() (*Session, error) {
 
 	// wait first prompt
 	go r.Reader()
-	ptmx.Write(LF)
-	prompt := readPrompt(buffer)
+	prompt := guessPrompt(buffer, ptmx)
 	if prompt == nil {
 		return nil, errors.New("prompt wait timeout")
 	}
@@ -113,9 +163,18 @@ func getMarkedCommand(cmd string) []byte {
 
 func (s *Session) ExecuteCommand(cmd string) string {
 	s.buffer.Reset()
-	s.ptmx.Write(getMarkedCommand(cmd))
+	cmdline := []byte(cmd+"\n")
+	zap.S().Debug("Write: ", cmdline)
+	s.ptmx.Write(cmdline)
+
+	zap.S().Debug("Write: ", bytes.ReplaceAll(cmdline, []byte("\n"), []byte("\r\n... ")))
+	cmdline = bytes.ReplaceAll(cmdline, []byte("\n"), []byte("\r\n... "))
+	s.ptmx.Write(LF)
 	for retry := 0; retry < 100; retry += 1 {
-		output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
+		// output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
+		// output, err := s.buffer.ReadBetweenPattern([]byte(START_MARKER), []byte(END_MARKER))
+		zap.S().Debug("Buf", s.buffer.Bytes())
+		output, err := s.buffer.ReadBetweenPattern(cmdline, s.prompt)
 		zap.S().Debug("wait output", output, err)
 		if err != nil {
 			return ""

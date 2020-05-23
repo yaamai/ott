@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"time"
+	"go.uber.org/zap"
 )
 
 type LockedBuffer struct {
@@ -36,6 +37,12 @@ func (b *LockedBuffer) Read(p []byte) (n int, err error) {
 	return b.b.Read(p)
 }
 
+func (b *LockedBuffer) Len() (n int) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Len()
+}
+
 func (b *LockedBuffer) Write(p []byte) (n int, err error) {
 	b.m.Lock()
 	defer b.m.Unlock()
@@ -46,6 +53,7 @@ func (b *LockedBuffer) Write(p []byte) (n int, err error) {
 func (b *LockedBuffer) ReadToPattern(pattern []byte) ([]byte, error) {
 	for retry := 0; retry < 100; retry += 1 {
 		pos := bytes.Index(b.Bytes(), pattern)
+		zap.S().Debug("ReadToPattern", retry, pos, b.Bytes(), pattern)
 		if pos != -1 {
 			buffer := make([]byte, pos)
 			l, err := b.Read(buffer)
@@ -58,7 +66,7 @@ func (b *LockedBuffer) ReadToPattern(pattern []byte) ([]byte, error) {
 			return buffer, nil
 		}
 
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	return nil, errors.New("timeout waiting pattern present")

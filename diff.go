@@ -32,36 +32,29 @@ func calc_diff(a, b []string) int {
 	}
 
 	oldses := map[int][]string{}
-	sesdown := func (ses *[]string, k, y int, prev bool) {
+	sesdown := func (k, x int, prev bool) {
 		if prev {
-			*ses = oldses[max+k+1]
-			fmt.Println("down-from:", max+k+1)
+			d := make([]string, len(oldses[max+k+1]))
+			copy(d, oldses[max+k+1])
+			oldses[max+k] = d
+			fmt.Println("down2-from:", max+k+1, oldses[max+k])
 		}
-		*ses = append(*ses, "down")
-		fmt.Println("down")
-	}
-	sesdown2 := func (ses *[]string, k, y int, prev bool) {
-		if prev {
-			*ses = oldses[max+k+1]
-			fmt.Println("down2-from:", max+k+1, *ses)
-		}
-		*ses = append(*ses, "down2")
+		oldses[max+k] = append(oldses[max+k], "down2")
 		fmt.Println("down2")
 	}
-	sesright := func (ses *[]string, k, y int, prev bool) {
+	sesright := func (k, x int, prev bool) {
 		if prev {
-			*ses = oldses[max+k-1]
-			fmt.Println("right-from:", max+k+1)
+			d := make([]string, len(oldses[max+k-1]))
+			copy(d, oldses[max+k-1])
+			oldses[max+k] = d
+			fmt.Println("right-from:", max+k-1, oldses[max+k])
 		}
-		*ses = append(*ses, "right")
+		oldses[max+k] = append(oldses[max+k], "right")
 		fmt.Println("right")
 	}
-	sescopy := func (ses *[]string, k, y int) {
-		*ses = append(*ses, "copy")
+	sescopy := func (k, x int) {
+		oldses[max+k] = append(oldses[max+k], "copy")
 		fmt.Println("copy")
-	}
-	setses := func (k int, ses []string) {
-		oldses[max+k] = ses
 	}
 
 	for d := 0; d <= max+1; d++ {
@@ -78,33 +71,31 @@ func calc_diff(a, b []string) int {
 			fmt.Println("ses: ", oldses)
 
 			x := 0
-			ses := []string{}
 			if d == 0 {
 				x = getv(k+1)
 			} else if k == -d {
 				x = getv(k+1)
-				sesdown(&ses, k, x, true)
+				sesdown(k, x, true)
 			} else if k != d && getv(k-1) < getv(k+1){
 				x = getv(k+1)
-				sesdown2(&ses, k, x, true)
+				sesdown(k, x, true)
 			} else {
 				x = getv(k-1) + 1
-				sesright(&ses, k, x, true)
+				sesright(k, x, true)
 			}
 			y := x - k
 			fmt.Println("pos: ", x, y)
 			for x < n && y < m && a[x] == b[y] {
 				x += 1
 				y += 1
-				sescopy(&ses, k, y)
+				sescopy(k, y)
 			}
 
 			setv(k, x)
-			setses(k, ses)
 			fmt.Println("save:", max+k)
 
 			if x >= n && y >= m {
-				fmt.Println("SES:", ses)
+				fmt.Println("SES:", oldses[max+k])
 				return d
 			}
 		}

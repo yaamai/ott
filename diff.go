@@ -35,13 +35,23 @@ func calc_diff(a, b []string) int {
 	sesdown := func (ses *[]string, k, y int, prev bool) {
 		if prev {
 			*ses = oldses[max+k+1]
+			fmt.Println("down-from:", max+k+1)
 		}
 		*ses = append(*ses, "down")
 		fmt.Println("down")
 	}
+	sesdown2 := func (ses *[]string, k, y int, prev bool) {
+		if prev {
+			*ses = oldses[max+k+1]
+			fmt.Println("down2-from:", max+k+1, *ses)
+		}
+		*ses = append(*ses, "down2")
+		fmt.Println("down2")
+	}
 	sesright := func (ses *[]string, k, y int, prev bool) {
 		if prev {
 			*ses = oldses[max+k-1]
+			fmt.Println("right-from:", max+k+1)
 		}
 		*ses = append(*ses, "right")
 		fmt.Println("right")
@@ -50,39 +60,38 @@ func calc_diff(a, b []string) int {
 		*ses = append(*ses, "copy")
 		fmt.Println("copy")
 	}
+	setses := func (k int, ses []string) {
+		oldses[max+k] = ses
+	}
 
 	for d := 0; d <= max+1; d++ {
 		fmt.Println("dloop: ", d)
 		for k := -d; k <= d; k += 2 {
 			fmt.Println("kloop: ", k)
 			fmt.Println("v: ", v)
+			// for by := 0; by < m; by += 1 {
+			// 	for ax := 0; ax < n; ax += 1 {
+			// 		fmt.Print(getv(ax-by))
+			// 	}
+			// 	fmt.Println("")
+			// }
+			fmt.Println("ses: ", oldses)
 
-			y := 0
+			x := 0
 			ses := []string{}
 			if d == 0 {
-				y = 0
+				x = getv(k+1)
 			} else if k == -d {
-				// lower-k has same previous k's v
-				y = getv(k+1) + 1
-				sesdown(&ses, k, y, true)
-			} else if k == d {
-				// upper-k
-				y = getv(k-1)
-				sesright(&ses, k, y, true)
+				x = getv(k+1)
+				sesdown(&ses, k, x, true)
+			} else if k != d && getv(k-1) < getv(k+1){
+				x = getv(k+1)
+				sesdown2(&ses, k, x, true)
 			} else {
-				lower := getv(k+1) + 1
-				upper := getv(k-1)
-				// FIXME: maybe cant' determine best-path without snake
-				if upper > lower {
-					y = upper
-					sesdown(&ses, k, y, true)
-				} else {
-					y = lower
-					sesright(&ses, k, y, true)
-				}
+				x = getv(k-1) + 1
+				sesright(&ses, k, x, true)
 			}
-
-			x := y + k
+			y := x - k
 			fmt.Println("pos: ", x, y)
 			for x < n && y < m && a[x] == b[y] {
 				x += 1
@@ -90,10 +99,11 @@ func calc_diff(a, b []string) int {
 				sescopy(&ses, k, y)
 			}
 
-			setv(k, y)
-			oldses[max+k] = ses
+			setv(k, x)
+			setses(k, ses)
+			fmt.Println("save:", max+k)
 
-			if x >= m && y >= n {
+			if x >= n && y >= m {
 				fmt.Println("SES:", ses)
 				return d
 			}

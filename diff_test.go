@@ -14,6 +14,6 @@ func TestGetMarkedCommand(t *testing.T) {
 	//b = []string{"c", "b", "a", "b", "a", "c"}
 	//a = []string{"a", "b", "c", "a", "b", "b", "a"}
 	//b = []string{"c", "b", "a", "b", "a", "c"}
-	d := calc_diff(a, b)
+	d := calcDiff(a, b)
 	fmt.Println(d)
 }

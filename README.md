@@ -3,7 +3,7 @@
 Shell script runner with built-in diff checker.
 
 ## Example
-```
+```Shell
 # ott -h
 Usage of ott:
   -format string
@@ -27,6 +27,39 @@ test-echo-a:
   $ echo a
   -b
   +a
+
+# cat examples/regex.t
+normal-match:
+  $ echo a
+  a
+
+regex-match:
+  $ echo aaa11
+  aaa\d+ (re)
+
+  $ echo aaaXX
+  aaa\d+ (re)
+
+regex-multiline:
+  $ echo -e "aaaa\nbbbb\ncccc"
+  [ab]+ (re)
+  [ab]+ (re)
+
+# ./ott -session-cmd bash examples/regex.t
+normal-match:
+  $ echo a
+  a
+regex-match:
+  $ echo aaa11
+  aaa\d+ (re)
+  $ echo aaaXX
+  -aaa\d+ (re)
+  +aaaXX
+regex-multiline:
+  $ echo -e "aaaa\nbbbb\ncccc"
+  [ab]+ (re)
+  [ab]+ (re)
+  +cccc
 ```
 
 ## Install

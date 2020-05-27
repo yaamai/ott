@@ -34,7 +34,6 @@ type Session struct {
 	buffer  *LockedBuffer
 	adapter SessionAdapter
 }
-
 func getSessionAdapter(mode string) SessionAdapter {
 	switch mode {
 	case "shell":
@@ -99,7 +98,7 @@ func (s *Session) ExecuteCommand(cmdStrs []string) []string {
 	startMarker := s.adapter.GetStartMarker(cmdStrs)
 	endMarker := s.adapter.GetEndMarker(cmdStrs)
 	s.ptmx.Write(cmdline)
-	zap.S().Debug("Execute: ", string(cmdline), cmdline)
+	zap.S().Debug("Execute: ", string(cmdline), cmdline, startMarker, endMarker)
 
 	for retry := 0; retry < CMD_EXECUTE_RETRY; retry += 1 {
 		output, err := s.buffer.ReadBetweenPattern(startMarker, endMarker)

@@ -32,6 +32,9 @@ func (s *PythonSession) GetStartMarker(cmdStrs []string) []byte {
 	cmds := getBytesArray(cmdStrs)
 	expectStartMarker := bytes.Join(cmds, []byte("\r\n... "))
 	expectStartMarker = append(expectStartMarker, []byte("\r\n")...)
+	if len(cmds) >= 2 {
+		expectStartMarker = append(expectStartMarker, []byte("... \r\n")...)
+	}
 	return expectStartMarker
 }
 
@@ -40,5 +43,5 @@ func (s *PythonSession) GetEndMarker(_ []string) []byte {
 }
 
 func (s *PythonSession) NormalizeOutput(output []byte) []string {
-	return getStringArray(bytes.Split(output, []byte("\n")))
+	return getStringArray(bytes.Split(output, []byte("\r\n")))
 }

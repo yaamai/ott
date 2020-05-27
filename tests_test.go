@@ -61,7 +61,7 @@ func TestNewFromRawT(t *testing.T) {
 					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
-							&TestStep{Command: "a"},
+							&TestStep{Command: []string{"a"}},
 						},
 					},
 				},
@@ -79,13 +79,13 @@ func TestNewFromRawT(t *testing.T) {
 					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
-							&TestStep{Command: "a"},
+							&TestStep{Command: []string{"a"}},
 						},
 					},
 					&TestCase{
 						Name: "bbbb",
 						Steps: []*TestStep{
-							&TestStep{Command: "b"},
+							&TestStep{Command: []string{"b"}},
 						},
 					},
 				},
@@ -102,7 +102,7 @@ func TestNewFromRawT(t *testing.T) {
 					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
-							&TestStep{Command: "a", ExpectedOutput: "a\n"},
+							&TestStep{Command: []string{"a"}, ExpectedOutput: []string{"a"}},
 						},
 					},
 				},
@@ -121,8 +121,8 @@ func TestNewFromRawT(t *testing.T) {
 					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
-							&TestStep{Command: "a", ExpectedOutput: "a\n"},
-							&TestStep{Command: "b\nc"},
+							&TestStep{Command: []string{"a"}, ExpectedOutput: []string{"a"}},
+							&TestStep{Command: []string{"b", "c"}},
 						},
 					},
 				},
@@ -143,8 +143,8 @@ func TestNewFromRawT(t *testing.T) {
 					&TestCase{
 						Name: "aaaa",
 						Steps: []*TestStep{
-							&TestStep{Command: "a", ExpectedOutput: "a\n"},
-							&TestStep{Command: "b\nc", ExpectedOutput: "b\nc\n"},
+							&TestStep{Command: []string{"a"}, ExpectedOutput: []string{"a"}},
+							&TestStep{Command: []string{"b", "c"}, ExpectedOutput: []string{"b", "c"}},
 						},
 					},
 				},

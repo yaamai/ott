@@ -7,7 +7,7 @@ import (
 	"regexp"
 )
 
-func TestGetMarkedCommand(t *testing.T) {
+func TestCalcDiff(t *testing.T) {
 	a := []string{"a", "b", "c"}
 	b := []string{"b", "b", "c"}
 	a = []string{"k", "i", "t", "t", "e", "n"}

@@ -3,7 +3,7 @@
 Shell script runner with built-in diff checker.
 
 ## Example
-```
+```Shell
 # ott -h
 Usage of ott:
   -format string

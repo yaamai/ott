@@ -1,8 +1,8 @@
 package main
 
-func calcDiff(a, b []string) []string {
+func calcDiff(a, b []string, equal func(string, string) bool) []string {
 	ret := []string{}
-	ses := calcSES(a, b)
+	ses := calcSES(a, b, equal)
 	x, y := 0, 0
 	for _, es := range ses {
 		switch es {
@@ -10,10 +10,10 @@ func calcDiff(a, b []string) []string {
 			ret = append(ret, a[x])
 			x, y = x+1, y+1
 		case -1:
-			ret = append(ret, "-" + a[x])
+			ret = append(ret, "-" + b[x])
 			x += 1
 		case 1:
-			ret = append(ret, "+" + b[y])
+			ret = append(ret, "+" + a[y])
 			y += 1
 		}
 	}
@@ -21,7 +21,7 @@ func calcDiff(a, b []string) []string {
 	return ret
 }
 
-func calcSES(a, b []string) []int {
+func calcSES(a, b []string, equal func(string, string) bool) []int {
 	n, m := len(a), len(b)
 	max := m + n
 
@@ -70,7 +70,7 @@ func calcSES(a, b []string) []int {
 				sesright(k, x, true)
 			}
 			y := x - k
-			for x < n && y < m && a[x] == b[y] {
+			for x < n && y < m && equal(a[x], b[y]) {
 				x += 1
 				y += 1
 				sescopy(k, y)

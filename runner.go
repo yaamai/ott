@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/pmezard/go-difflib/difflib"
 	"go.uber.org/zap"
 	"strings"
+	"regexp"
 )
 
 type Runner struct {
@@ -30,31 +30,44 @@ func getTestCaseMap(testFile *TestFile) map[string]*TestCase {
 	return result
 }
 
+
+func diff(expect, actual []string) []string {
+	diff := []string{}
+
+	for idx, _ := range expect {
+		zap.S().Debug(expect[idx], actual[idx], expect[idx] == actual[idx])
+		match := false
+		if strings.HasSuffix(expect[idx], " (re)") {
+			match, _ = regexp.MatchString(strings.TrimSuffix(expect[idx], " (re)"), actual[idx])
+		} else {
+			match = expect[idx] == actual[idx]
+		}
+		zap.S().Debug(match)
+		if match {
+			diff = append(diff, actual[idx])
+		} else {
+			diff = append(diff, "- " + expect[idx])
+			diff = append(diff, "+ " + actual[idx])
+		}
+	}
+
+	return diff
+}
+
 func (r *Runner) runTestCase(testCase *TestCase) {
 	for testStepIdx, testStep := range testCase.Steps {
 		zap.S().Debug("Running test-step: ", testStep.Command)
 		zap.S().Debug("                 : ", testStep.ExpectedOutput)
 
-		// session, tests-parser parse outputs to string-array.
-		// diff perfoms with "\n" joined
-		expectOutput := strings.Join(testStep.ExpectedOutput, "\n")
-		actualOutput := strings.Join(r.session.ExecuteCommand(testStep.Command), "\n")
-		// "t-file" can't represent new-line at end. (currently)
-		// suffix is "\n" only (output joined above)
-		actualOutput = strings.TrimSuffix(actualOutput, "\n")
-
-		diff := difflib.UnifiedDiff{
-			A:        difflib.SplitLines(expectOutput),
-			B:        difflib.SplitLines(actualOutput),
-			FromFile: "Expected",
-			ToFile:   "Output",
-			Context:  3,
+		actualOutput := r.session.ExecuteCommand(testStep.Command)
+		// remove new-line at end. t-file can't represent new-line at end.
+		if len(actualOutput) > 0 {
+			if actualOutput[len(actualOutput)-1] == "" {
+				actualOutput = actualOutput[:len(actualOutput)-1]
+			}
 		}
-		text, _ := difflib.GetUnifiedDiffString(diff)
-
-		testCase.Steps[testStepIdx].ActualOutput = actualOutput
-		testCase.Steps[testStepIdx].Diff = text
-		zap.S().Debug(text)
+		testCase.Steps[testStepIdx].Diff = diff(testStep.ExpectedOutput, actualOutput)
+		testCase.Steps[testStepIdx].ActualOutput = actualOutput[0]
 	}
 }
 

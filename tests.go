@@ -29,7 +29,7 @@ type TestStep struct {
 	Command        []string `json:"command"`
 	ExpectedOutput []string `json:"expected_output"`
 	ActualOutput   string   `json:"actual_output"`
-	Diff           string   `json:"diff"`
+	Diff           []string   `json:"diff"`
 }
 
 var (
@@ -231,10 +231,8 @@ func (t *TestFile) ConvertToLines(mode string) []Line {
 			}
 			if contains(modeList, "diff") {
 				// add diff
-				if testStep.Diff != "" {
-					for _, l := range strings.Split(testStep.Diff, "\n") {
-						lines = append(lines, &OutputLine{"  " + l})
-					}
+				for _, l := range testStep.Diff {
+					lines = append(lines, &OutputLine{"  " + l})
 				}
 			}
 			if contains(modeList, "expected") {

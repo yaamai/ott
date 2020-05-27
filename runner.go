@@ -53,7 +53,7 @@ func (r *Runner) runTestCase(testCase *TestCase) {
 			}
 		}
 		testCase.Steps[testStepIdx].Diff = calcDiff(testStep.ExpectedOutput, actualOutput, diffEqual)
-		testCase.Steps[testStepIdx].ActualOutput = actualOutput[0]
+		testCase.Steps[testStepIdx].ActualOutput = strings.Join(actualOutput, "\n")
 	}
 }
 

@@ -1,5 +1,9 @@
 package main
 
+import (
+	"go.uber.org/zap"
+)
+
 func calcDiff(a, b []string, equal func(string, string) bool) []string {
 	ret := []string{}
 	ses := calcSES(a, b, equal)
@@ -7,13 +11,13 @@ func calcDiff(a, b []string, equal func(string, string) bool) []string {
 	for _, es := range ses {
 		switch es {
 		case 0:
-			ret = append(ret, a[x])
+			ret = append(ret, b[x])
 			x, y = x+1, y+1
 		case -1:
-			ret = append(ret, "-" + a[x])
+			ret = append(ret, "- " + a[x])
 			x += 1
 		case 1:
-			ret = append(ret, "+" + b[y])
+			ret = append(ret, "+ " + b[y])
 			y += 1
 		}
 	}
@@ -24,6 +28,10 @@ func calcDiff(a, b []string, equal func(string, string) bool) []string {
 func calcSES(a, b []string, equal func(string, string) bool) []int {
 	n, m := len(a), len(b)
 	max := m + n
+	zap.S().Debug("ses pre: ", a, b, n, m)
+	if max == 0 {
+		return []int{}
+	}
 
 	// hold v (-max to +max)
 	v := make([]int, max*2 + 1)

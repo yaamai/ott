@@ -7,7 +7,7 @@ func calcDiff(a, b []string, equal func(string, string) bool) []string {
 	for _, es := range ses {
 		switch es {
 		case 0:
-			ret = append(ret, a[x])
+			ret = append(ret, b[x])
 			x, y = x+1, y+1
 		case -1:
 			ret = append(ret, "-" + a[x])

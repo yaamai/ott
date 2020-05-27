@@ -10,10 +10,10 @@ func calcDiff(a, b []string, equal func(string, string) bool) []string {
 			ret = append(ret, a[x])
 			x, y = x+1, y+1
 		case -1:
-			ret = append(ret, "-" + b[x])
+			ret = append(ret, "-" + a[x])
 			x += 1
 		case 1:
-			ret = append(ret, "+" + a[y])
+			ret = append(ret, "+" + b[y])
 			y += 1
 		}
 	}

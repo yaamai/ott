@@ -30,28 +30,14 @@ func getTestCaseMap(testFile *TestFile) map[string]*TestCase {
 	return result
 }
 
-
-func diff(expect, actual []string) []string {
-	diff := []string{}
-
-	for idx, _ := range expect {
-		zap.S().Debug(expect[idx], actual[idx], expect[idx] == actual[idx])
-		match := false
-		if strings.HasSuffix(expect[idx], " (re)") {
-			match, _ = regexp.MatchString(strings.TrimSuffix(expect[idx], " (re)"), actual[idx])
-		} else {
-			match = expect[idx] == actual[idx]
-		}
-		zap.S().Debug(match)
-		if match {
-			diff = append(diff, actual[idx])
-		} else {
-			diff = append(diff, "- " + expect[idx])
-			diff = append(diff, "+ " + actual[idx])
-		}
+func diffEqual(expect, actual string) bool {
+	match := false
+	if strings.HasSuffix(expect, " (re)") {
+		match, _ = regexp.MatchString(strings.TrimSuffix(expect, " (re)"), actual)
+	} else {
+		match = expect == actual
 	}
-
-	return diff
+	return match
 }
 
 func (r *Runner) runTestCase(testCase *TestCase) {
@@ -66,7 +52,7 @@ func (r *Runner) runTestCase(testCase *TestCase) {
 				actualOutput = actualOutput[:len(actualOutput)-1]
 			}
 		}
-		testCase.Steps[testStepIdx].Diff = diff(testStep.ExpectedOutput, actualOutput)
+		testCase.Steps[testStepIdx].Diff = calcDiff(testStep.ExpectedOutput, actualOutput, diffEqual)
 		testCase.Steps[testStepIdx].ActualOutput = actualOutput[0]
 	}
 }

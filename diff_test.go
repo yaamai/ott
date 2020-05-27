@@ -14,13 +14,13 @@ func TestGetMarkedCommand(t *testing.T) {
 	b = []string{"s", "i", "t", "t", "i", "n", "g"}
 	a = []string{"a", "b"}
 	b = []string{"a", "b"}
-	a = []string{"a1", "b1"}
+	a = []string{"aa", "b1"}
 	b = []string{"a\\d (re)", "b\\D (re)"}
 	//a = []string{"a", "b", "c", "a", "b", "b", "a"}
 	//b = []string{"c", "b", "a", "b", "a", "c"}
 	//a = []string{"a", "b", "c", "a", "b", "b", "a"}
 	//b = []string{"c", "b", "a", "b", "a", "c"}
-	d := calcDiff(a, b, func(actual, expect string) bool {
+	d := calcDiff(b, a, func(expect, actual string) bool {
 		match := false
 		if strings.HasSuffix(expect, " (re)") {
 			match, _ = regexp.MatchString(strings.TrimSuffix(expect, " (re)"), actual)

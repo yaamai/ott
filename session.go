@@ -16,7 +16,7 @@ const (
 	READ_BUFFER_SIZE       = 4096
 	PROMPT_RETRY           = 100
 	PROMPT_RETRY_WAIT      = 10
-	CMD_EXECUTE_RETRY      = 100
+	CMD_EXECUTE_RETRY      = 10
 	CMD_EXECUTE_RETRY_WAIT = 10
 )
 
@@ -34,6 +34,7 @@ type Session struct {
 	buffer  *LockedBuffer
 	adapter SessionAdapter
 }
+
 func getSessionAdapter(mode string) SessionAdapter {
 	switch mode {
 	case "shell":
@@ -49,6 +50,7 @@ func NewSession(cmd, mode string) (*Session, error) {
 
 	// launch and attach to pty
 	c := exec.Command(cmd)
+	c.Env = append(c.Env, "PS1=#")
 	winsize := pty.Winsize{Cols: 80, Rows: 24}
 	ptmx, err := pty.StartWithSize(c, &winsize)
 	if err != nil {

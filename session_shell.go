@@ -50,5 +50,7 @@ func (s *ShellSession) GetEndMarker(_ []string) []byte {
 }
 
 func (s *ShellSession) NormalizeOutput(output []byte) []string {
-	return getStringArray(bytes.Split(output, []byte("\n")))
+	term := NewTerminal(80, 24)
+	term.Write(output)
+	return term.StringLines()
 }

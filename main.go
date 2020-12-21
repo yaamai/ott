@@ -70,7 +70,7 @@ func parseFlags() {
 	flag.StringVar(&outputMode, "mode", "diff", "output mode (diff/actual/expected)")
 	flag.StringVar(&outputFormat, "format", "text", "output format (text/json)")
 	flag.StringVar(&sessionMode, "session-mode", "shell", "session parse mode (shell/python)")
-	flag.StringVar(&sessionCmd, "session-cmd", "sh", "session command")
+	flag.StringVar(&sessionCmd, "session-cmd", "bash", "session command")
 	flag.Parse()
 
 	if flag.NArg() < 1 {

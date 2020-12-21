@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/rs/zerolog/log"
+
 	"bytes"
 	"errors"
 	"github.com/creack/pty"
@@ -17,7 +19,7 @@ const (
 	PROMPT_RETRY           = 100
 	PROMPT_RETRY_WAIT      = 10
 	CMD_EXECUTE_RETRY      = 10
-	CMD_EXECUTE_RETRY_WAIT = 10
+	CMD_EXECUTE_RETRY_WAIT = 10000
 )
 
 type SessionAdapter interface {
@@ -51,6 +53,8 @@ func NewSession(cmd, mode string) (*Session, error) {
 	// launch and attach to pty
 	c := exec.Command(cmd)
 	c.Env = append(c.Env, "PS1=#")
+	c.Env = append(c.Env, "HISTFILE=/dev/null")
+	c.Args = append(c.Args, []string{"--norc", "--noprofile"}...)
 	winsize := pty.Winsize{Cols: 80, Rows: 24}
 	ptmx, err := pty.StartWithSize(c, &winsize)
 	if err != nil {
@@ -104,7 +108,8 @@ func (s *Session) ExecuteCommand(cmdStrs []string) []string {
 
 	for retry := 0; retry < CMD_EXECUTE_RETRY; retry += 1 {
 		output, err := s.buffer.ReadBetweenPattern(startMarker, endMarker)
-		zap.S().Debug("wait output", output, string(output), err, s.buffer.Bytes())
+		log.Debug().Hex("output", output).Msg("complete output")
+		zap.S().Debug("wait output", output, string(output), err, s.buffer.Bytes(), string(s.buffer.Bytes()))
 		if err != nil {
 			return []string{}
 		}
@@ -114,6 +119,7 @@ func (s *Session) ExecuteCommand(cmdStrs []string) []string {
 		}
 		return s.adapter.NormalizeOutput(output)
 	}
+	zap.S().Warn("timed out")
 	return []string{}
 }
 

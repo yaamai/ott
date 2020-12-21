@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"github.com/stretchr/testify/assert"
 	"strings"
@@ -15,6 +16,28 @@ func MustDecodeHexString(in string) []byte {
 	data, _ := hex.DecodeString(in)
 	return data
 }
+
+func TestTerminalAutoExpand(t *testing.T) {
+	term := NewTerminal(0, 0)
+	assert.NotNil(t, term)
+
+	term.Write([]byte("A"))
+	assert.Equal(t, []string{"A"}, term.StringLines())
+
+	b := bytes.Repeat([]byte("B"), AUTO_EXPAND_COL+4)
+	term.Write(b)
+	assert.Equal(t, []string{"A" + string(b)}, term.StringLines())
+
+	c := bytes.Repeat([]byte("C"), AUTO_EXPAND_COL)
+	term.Write(bytes.Repeat(append(c, 0x0a), AUTO_EXPAND_ROW+4))
+	expect := []string{"A" + string(b) + string(c)}
+	for idx := 1; idx < AUTO_EXPAND_ROW+4; idx++ {
+		expect = append(expect, string(c))
+	}
+	expect = append(expect, string(""))
+	assert.Equal(t, expect, term.StringLines())
+}
+
 func TestTerminal(t *testing.T) {
 	/*
 		data, err := hex.DecodeString(strings.Join([]string{

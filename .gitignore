@@ -1,2 +1,5 @@
 go/
 ott
+.cache/
+test-*/
+home/

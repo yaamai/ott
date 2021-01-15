@@ -9,6 +9,7 @@ require (
 	github.com/alecthomas/participle/v2 v2.0.0-alpha3 // indirect
 	github.com/alecthomas/repr v0.0.0-20201120212035-bb82daffcca2 // indirect
 	github.com/creack/pty v1.1.11
+	github.com/go-delve/delve v1.5.1 // indirect
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f // indirect
 	github.com/rs/zerolog v1.20.0

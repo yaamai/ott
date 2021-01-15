@@ -5,6 +5,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/Kunde21/markdownfmt/v2/markdown"
@@ -77,7 +78,7 @@ func (c CommandStepResult) IsOutputsExpected() bool {
 		return false
 	}
 
-	for idx, _ := range c.Output {
+	for idx := range c.Output {
 		if c.Output[idx] != c.ActualOutput[idx] {
 			return false
 		}
@@ -160,11 +161,18 @@ func formatCommandStepResults(name string, results []CommandStepResult) string {
 	return s
 }
 
+// TODO: mirror command output with prefix
+// TODO: parse command steps name (using textblock ast before codeblock)
+// TODO: write actual output md
+// TODO: rewrite cli output
 func main() {
 
 	flag.Parse()
 
-	sess := NewShellSession()
+	sess, err := NewShellSession(Mirror(os.Stderr, []byte("  # "), []byte("  ")))
+	if err != nil {
+		log.Println(err)
+	}
 	results := map[string][]CommandStepResult{}
 	for _, arg := range flag.Args() {
 		bytes, err := ioutil.ReadFile(arg)

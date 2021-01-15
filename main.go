@@ -1,112 +1,183 @@
 package main
 
 import (
-	"fmt"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"log"
-	"os"
-	//	"strings"
-	"encoding/json"
+	"bytes"
 	"flag"
+	"io/ioutil"
+	"log"
+	"strings"
+
+	"github.com/Kunde21/markdownfmt/v2/markdown"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
 )
 
-var (
-	testFileNameList []string
-	logLevelStr      string
-	outputMode       string
-	outputFormat     string
-	sessionMode      string
-	sessionCmd       string
-)
+func newGoldmark() goldmark.Markdown {
+	mr := markdown.NewRenderer()
 
-func initLog(level string) func() {
-	// initialize logging
-	logConfig := zap.NewDevelopmentConfig()
-	logLevel := new(zapcore.Level)
-	logLevel.UnmarshalText([]byte(logLevelStr))
-	logConfig.Level.SetLevel(*logLevel)
-
-	logger, err := logConfig.Build()
-	if err != nil {
-		log.Fatalln(err)
+	extensions := []goldmark.Extender{
+		extension.GFM,
 	}
-	defer logger.Sync()
-
-	undo := zap.ReplaceGlobals(logger)
-	return undo
+	parserOptions := []parser.Option{
+		parser.WithAttribute(), // We need this to enable # headers {#custom-ids}.
+	}
+	gm := goldmark.New(
+		goldmark.WithExtensions(extensions...),
+		goldmark.WithParserOptions(parserOptions...),
+	)
+	gm.SetRenderer(mr)
+	return gm
 }
 
-func parseTFiles(filenames []string) ([][]Line, []*TestFile) {
-	linesList := [][]Line{}
-	testFileList := []*TestFile{}
-
-	for _, filename := range filenames {
-		// parse t file
-		f, err := os.OpenFile(filename, os.O_RDONLY, 0755)
-		if err != nil {
-			zap.S().Fatal(err)
-			os.Exit(1)
-		}
-		defer f.Close()
-
-		lines, err := ParseT(f)
-		if err != nil {
-			zap.S().Fatal(err)
-			os.Exit(1)
-		}
-
-		testFile := NewFromRawT(filename, lines)
-		testFileList = append(testFileList, &testFile)
-		linesList = append(linesList, lines)
-	}
-
-	return linesList, testFileList
+type CommandStep struct {
+	Command []string
+	Output  []string
 }
 
-func parseFlags() {
-	// parse flags
-	flag.StringVar(&logLevelStr, "log", "warn", "log level")
-	flag.StringVar(&outputMode, "mode", "diff", "output mode (diff/actual/expected)")
-	flag.StringVar(&outputFormat, "format", "text", "output format (text/json)")
-	flag.StringVar(&sessionMode, "session-mode", "shell", "session parse mode (shell/python)")
-	flag.StringVar(&sessionCmd, "session-cmd", "bash", "session command")
-	flag.Parse()
+type CommandStepResult struct {
+	CommandStep
+	ActualOutput []string
+}
 
-	if flag.NArg() < 1 {
-		os.Exit(1)
+func NewCommandSteps(lines []string) []CommandStep {
+	steps := []CommandStep{}
+	s := CommandStep{}
+
+	for _, l := range lines {
+		if strings.HasPrefix(l, "# ") {
+			if len(s.Command) > 0 {
+				steps = append(steps, s)
+				s = CommandStep{}
+			}
+			s.Command = append(s.Command, strings.TrimPrefix(l, "# "))
+		} else if strings.HasPrefix(l, "> ") {
+			s.Command = append(s.Command, strings.TrimPrefix(l, "> "))
+		} else {
+			s.Output = append(s.Output, l)
+		}
 	}
-	testFileNameList = flag.Args()
+	if len(s.Command) > 0 {
+		steps = append(steps, s)
+	}
+
+	return steps
+}
+
+func (c CommandStep) Run(s *ShellSession) CommandStepResult {
+	result := s.Run(strings.Join(c.Command, "\n") + "\n")
+	o := CommandStepResult{CommandStep: c, ActualOutput: strings.Split(result, "\n")}
+	return o
+}
+
+func (c CommandStepResult) IsOutputsExpected() bool {
+	if len(c.Output) != len(c.ActualOutput) {
+		return false
+	}
+
+	for idx, _ := range c.Output {
+		if c.Output[idx] != c.ActualOutput[idx] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func convertSegmentsToStringList(source []byte, s *text.Segments) []string {
+	lines := []string{}
+	for idx := 0; idx < s.Len(); idx++ {
+		text := s.At(idx)
+		lines = append(lines, strings.TrimSuffix(string(text.Value(source)), "\n"))
+	}
+	return lines
+}
+
+func createNewSegment(source *[]byte, s string) text.Segment {
+	start := len(*source)
+	stop := start + len(s)
+	*source = append(*source, []byte(s)...)
+
+	return text.NewSegment(start, stop)
+}
+
+func createNewSegments(source *[]byte, l []string) *text.Segments {
+	s := text.NewSegments()
+	for _, e := range l {
+		s.Append(createNewSegment(source, e))
+	}
+
+	return s
+}
+
+func walkCodeBlocks(source []byte, f func(lines []string) []string) (ast.Node, []byte) {
+	// prepare parser
+	gm := newGoldmark()
+	asts := gm.Parser().Parse(text.NewReader(source))
+
+	// walk and modify asts
+	ast.Walk(asts, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if n.Kind() == ast.KindFencedCodeBlock && !entering {
+			result := f(convertSegmentsToStringList(source, n.Lines()))
+			if result != nil {
+				n.SetLines(createNewSegments(&source, result))
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+
+	buf := bytes.Buffer{}
+	gm.Renderer().Render(&buf, source, asts)
+	return asts, buf.Bytes()
+}
+
+func run(sess *ShellSession, source []byte) ([]byte, []CommandStepResult) {
+	results := []CommandStepResult{}
+	_, modified := walkCodeBlocks(source, func(lines []string) []string {
+		steps := NewCommandSteps(lines)
+		for _, s := range steps {
+			results = append(results, s.Run(sess))
+		}
+		log.Println(steps, results)
+		return nil
+	})
+
+	return modified, results
+}
+
+func formatCommandStepResults(name string, results []CommandStepResult) string {
+	var s string = name + ": "
+	for _, step := range results {
+		if step.IsOutputsExpected() {
+			s += "."
+		} else {
+			s += "!"
+		}
+	}
+
+	return s
 }
 
 func main() {
-	// init flags and logger
-	parseFlags()
-	undo := initLog(logLevelStr)
-	defer undo()
 
-	_, testFileList := parseTFiles(testFileNameList)
+	flag.Parse()
 
-	runner, err := NewRunner(sessionCmd, sessionMode)
-	if err != nil {
-		zap.S().Fatal(err)
-		os.Exit(1)
-	}
-	resultFileList := runner.RunMultiple(testFileList)
-
-	// output
-	if outputFormat == "json" {
-		jsonBytes, err := json.Marshal(resultFileList)
+	sess := NewShellSession()
+	results := map[string][]CommandStepResult{}
+	for _, arg := range flag.Args() {
+		bytes, err := ioutil.ReadFile(arg)
 		if err != nil {
-			zap.S().Fatal(err)
+			log.Println(err)
 		}
-		fmt.Println(string(jsonBytes))
-	} else {
-		zap.S().Info("Converting " + outputMode + "mode")
-		for _, f := range resultFileList {
-			for _, l := range f.ConvertToLines(outputMode) {
-				fmt.Println(l.Line())
-			}
-		}
+
+		_, r := run(sess, bytes)
+		log.Println(formatCommandStepResults(arg, r))
+		results[arg] = r
 	}
+
+	// source := []byte("---\nTitle: 100\n---\n\n# test `# a:100`\n```\n# aaaa\n# bbbb\ncccc\n```\n# aaa\n[]: # aaa")
+	// fmt.Print(string(source))
+	// run(source)
 }

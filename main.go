@@ -161,15 +161,15 @@ func formatCommandStepResults(name string, results []CommandStepResult) string {
 	return s
 }
 
-// TODO: mirror command output with prefix
 // TODO: parse command steps name (using textblock ast before codeblock)
 // TODO: write actual output md
 // TODO: rewrite cli output
+// TODO: ansi
 func main() {
 
 	flag.Parse()
 
-	sess, err := NewShellSession(Mirror(os.Stderr, []byte("  # "), []byte("  ")))
+	sess, err := NewShellSession(Mirror(os.Stderr))
 	if err != nil {
 		log.Println(err)
 	}

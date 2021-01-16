@@ -34,6 +34,7 @@ func newGoldmark() goldmark.Markdown {
 }
 
 type CommandStep struct {
+	Name    string
 	Command []string
 	Output  []string
 }
@@ -43,7 +44,7 @@ type CommandStepResult struct {
 	ActualOutput []string
 }
 
-func NewCommandSteps(lines []string) []CommandStep {
+func NewCommandSteps(name string, lines []string) []CommandStep {
 	steps := []CommandStep{}
 	s := CommandStep{}
 
@@ -51,7 +52,7 @@ func NewCommandSteps(lines []string) []CommandStep {
 		if strings.HasPrefix(l, "# ") {
 			if len(s.Command) > 0 {
 				steps = append(steps, s)
-				s = CommandStep{}
+				s = CommandStep{Name: name}
 			}
 			s.Command = append(s.Command, strings.TrimPrefix(l, "# "))
 		} else if strings.HasPrefix(l, "> ") {
@@ -113,7 +114,7 @@ func createNewSegments(source *[]byte, l []string) *text.Segments {
 	return s
 }
 
-func walkCodeBlocks(source []byte, f func(lines []string) []string) (ast.Node, []byte) {
+func walkCodeBlocks(source []byte, f func(n ast.Node, lines []string) []string) (ast.Node, []byte) {
 	// prepare parser
 	gm := newGoldmark()
 	asts := gm.Parser().Parse(text.NewReader(source))
@@ -121,7 +122,7 @@ func walkCodeBlocks(source []byte, f func(lines []string) []string) (ast.Node, [
 	// walk and modify asts
 	ast.Walk(asts, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if n.Kind() == ast.KindFencedCodeBlock && !entering {
-			result := f(convertSegmentsToStringList(source, n.Lines()))
+			result := f(n, convertSegmentsToStringList(source, n.Lines()))
 			if result != nil {
 				n.SetLines(createNewSegments(&source, result))
 			}
@@ -136,8 +137,13 @@ func walkCodeBlocks(source []byte, f func(lines []string) []string) (ast.Node, [
 
 func run(sess *ShellSession, source []byte) ([]byte, []CommandStepResult) {
 	results := []CommandStepResult{}
-	_, modified := walkCodeBlocks(source, func(lines []string) []string {
-		steps := NewCommandSteps(lines)
+	_, modified := walkCodeBlocks(source, func(n ast.Node, lines []string) []string {
+		var name string
+		if prev, ok := n.(*ast.FencedCodeBlock).PreviousSibling().(*ast.Heading); ok {
+			text := prev.Lines().At(0)
+			name = string(text.Value(source))
+		}
+		steps := NewCommandSteps(name, lines)
 		for _, s := range steps {
 			results = append(results, s.Run(sess))
 		}
@@ -161,7 +167,6 @@ func formatCommandStepResults(name string, results []CommandStepResult) string {
 	return s
 }
 
-// TODO: parse command steps name (using textblock ast before codeblock)
 // TODO: write actual output md
 // TODO: rewrite cli output
 // TODO: ansi
@@ -180,7 +185,8 @@ func main() {
 			log.Println(err)
 		}
 
-		_, r := run(sess, bytes)
+		modified, r := run(sess, bytes)
+		ioutil.WriteFile("out.t.md", modified, 0644)
 		log.Println(formatCommandStepResults(arg, r))
 		results[arg] = r
 	}

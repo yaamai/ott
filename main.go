@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -15,23 +16,6 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
-
-func newGoldmark() goldmark.Markdown {
-	mr := markdown.NewRenderer()
-
-	extensions := []goldmark.Extender{
-		extension.GFM,
-	}
-	parserOptions := []parser.Option{
-		parser.WithAttribute(), // We need this to enable # headers {#custom-ids}.
-	}
-	gm := goldmark.New(
-		goldmark.WithExtensions(extensions...),
-		goldmark.WithParserOptions(parserOptions...),
-	)
-	gm.SetRenderer(mr)
-	return gm
-}
 
 type CommandStep struct {
 	Name    string
@@ -88,6 +72,23 @@ func (c CommandStepResult) IsOutputsExpected() bool {
 	return true
 }
 
+func newGoldmark() goldmark.Markdown {
+	mr := markdown.NewRenderer()
+
+	extensions := []goldmark.Extender{
+		extension.GFM,
+	}
+	parserOptions := []parser.Option{
+		parser.WithAttribute(), // We need this to enable # headers {#custom-ids}.
+	}
+	gm := goldmark.New(
+		goldmark.WithExtensions(extensions...),
+		goldmark.WithParserOptions(parserOptions...),
+	)
+	gm.SetRenderer(mr)
+	return gm
+}
+
 func convertSegmentsToStringList(source []byte, s *text.Segments) []string {
 	lines := []string{}
 	for idx := 0; idx < s.Len(); idx++ {
@@ -135,23 +136,29 @@ func walkCodeBlocks(source []byte, f func(n ast.Node, lines []string) []string) 
 	return asts, buf.Bytes()
 }
 
-func run(sess *ShellSession, source []byte) ([]byte, []CommandStepResult) {
+func runFile(sess *ShellSession, source []byte) ([]byte, []CommandStepResult) {
 	results := []CommandStepResult{}
+
 	_, modified := walkCodeBlocks(source, func(n ast.Node, lines []string) []string {
 		var name string
 		if prev, ok := n.(*ast.FencedCodeBlock).PreviousSibling().(*ast.Heading); ok {
 			text := prev.Lines().At(0)
 			name = string(text.Value(source))
 		}
+
+		fmt.Printf(">>>> %s", name)
 		steps := NewCommandSteps(name, lines)
 		for _, s := range steps {
 			results = append(results, s.Run(sess))
 		}
-		log.Println(steps, results)
 		return nil
 	})
 
 	return modified, results
+}
+
+func runFiles(sess *ShellSession, source []byte) {
+
 }
 
 func formatCommandStepResults(name string, results []CommandStepResult) string {
@@ -169,6 +176,24 @@ func formatCommandStepResults(name string, results []CommandStepResult) string {
 
 // TODO: write actual output md
 // TODO: rewrite cli output
+/*
+default:
+example.t.md
+  => test A
+  # echo a
+  a
+  => test B
+  # echo b
+=> !. (1/2) FAIL
+
+-q:
+example.t.md: !.... (1/2) FAIL
+
+-o json
+md-err
+md-all
+json
+*/
 // TODO: ansi
 func main() {
 
@@ -180,14 +205,15 @@ func main() {
 	}
 	results := map[string][]CommandStepResult{}
 	for _, arg := range flag.Args() {
+		fmt.Printf("== %s ==\n", arg)
 		bytes, err := ioutil.ReadFile(arg)
 		if err != nil {
 			log.Println(err)
 		}
 
-		modified, r := run(sess, bytes)
+		modified, r := runFile(sess, bytes)
 		ioutil.WriteFile("out.t.md", modified, 0644)
-		log.Println(formatCommandStepResults(arg, r))
+		fmt.Printf("<< %s >>", formatCommandStepResults(arg, r))
 		results[arg] = r
 	}
 

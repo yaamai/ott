@@ -132,7 +132,7 @@ func getPatternPos(buf, startPattern, endPattern []byte) (int, int) {
 	return startPos, endPos
 }
 
-// TODO: if partial pattern found, callback may incorrect
+// TODO: if read partial pattern, callback may incorrect
 func (r *Reader) ReadBetweenPattern(startPattern, endPattern []byte, cb func(data []byte)) []byte {
 	return r.ReadWithFunc(func(buf []byte, l int) (int, []byte) {
 		startPos, endPos := getPatternPos(buf, startPattern, endPattern)

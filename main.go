@@ -2,11 +2,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
+	"text/template"
+	"time"
 
 	"github.com/Kunde21/markdownfmt/v2/markdown"
 	"github.com/yuin/goldmark"
@@ -17,14 +21,14 @@ import (
 )
 
 type CommandStep struct {
-	Name    string
-	Command []string
-	Output  []string
+	Name    string   `json:"name"`
+	Command []string `json:"command"`
+	Output  []string `json:"output"`
 }
 
 type CommandStepResult struct {
 	CommandStep
-	ActualOutput []string
+	ActualOutput []string `json:"actual"`
 }
 
 func NewCommandSteps(name string, lines []string) []CommandStep {
@@ -69,6 +73,20 @@ func (c CommandStepResult) IsOutputsExpected() bool {
 	}
 
 	return true
+}
+
+func (c CommandStepResult) StringLines() []string {
+	result := []string{}
+	prompt := "#"
+	for _, cmd := range c.Command {
+		result = append(result, fmt.Sprintf("%s %s\n", prompt, cmd))
+		prompt = ">"
+	}
+	for _, out := range c.ActualOutput {
+		result = append(result, fmt.Sprintf("%s\n", out))
+	}
+
+	return result
 }
 
 func newGoldmark() goldmark.Markdown {
@@ -153,6 +171,14 @@ func countCommandStepResults(results []CommandStepResult) (string, int, int) {
 	return s, success, fail
 }
 
+func convertCommandStepResults(results []CommandStepResult) []string {
+	result := []string{}
+	for _, r := range results {
+		result = append(result, r.StringLines()...)
+	}
+	return result
+}
+
 func formatCommandStepResults(name string, results []CommandStepResult) string {
 	var s string = name + ": "
 	for _, step := range results {
@@ -194,12 +220,24 @@ json
 */
 // TODO: ansi
 
-type Cli struct {
-	sess  *ShellSession
-	quiet bool
+type StringList []string
+
+func (i *StringList) String() string {
+	return strings.Join(*i, ",")
 }
 
-func NewCli(quiet bool, outputs string) (*Cli, error) {
+func (i *StringList) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
+type Cli struct {
+	sess    *ShellSession
+	quiet   bool
+	outputs []string
+}
+
+func NewCli(quiet bool, outputs []string) (*Cli, error) {
 	opts := []func(s *ShellSessionOption){}
 	if !quiet {
 		opts = append(opts, Mirror(os.Stderr))
@@ -210,9 +248,69 @@ func NewCli(quiet bool, outputs string) (*Cli, error) {
 	}
 
 	return &Cli{
-		sess:  sess,
-		quiet: quiet,
+		sess:    sess,
+		quiet:   quiet,
+		outputs: outputs,
 	}, nil
+}
+
+type TemplateContext struct {
+	FileName string
+	BaseName string
+	Format   string
+	Timing   string
+	Time     time.Time
+	TS       string
+}
+
+func parseOutputFlag(filename, out string) (string, TemplateContext) {
+	list := strings.Split(out, ":")
+	format := list[0]
+
+	timing := "always"
+	if len(list) > 1 {
+		timing = list[1]
+	}
+
+	templateStr := "{{.Filename}}{{.Format}}"
+	if len(list) > 2 {
+		templateStr = list[2]
+	}
+
+	ctx := TemplateContext{
+		filename,
+		strings.TrimSuffix(filename, filepath.Ext(filename)),
+		format,
+		timing,
+		time.Now(),
+		time.Now().Format("20060102_150405"),
+	}
+	return templateStr, ctx
+}
+
+func (c *Cli) outputFiles(origFilename string, input, output []byte, results []CommandStepResult) {
+	for _, out := range c.outputs {
+		var b strings.Builder
+		templateStr, ctx := parseOutputFlag(origFilename, out)
+		templ, _ := template.New("filename").Parse(templateStr)
+		templ.Execute(&b, ctx)
+		outFilename := b.String()
+
+		_, _, fail := countCommandStepResults(results)
+		if (ctx.Timing == "always") || (ctx.Timing == "err" && fail != 0) || (ctx.Timing == "ok" && fail == 0) {
+			dir := filepath.Dir(outFilename)
+			os.MkdirAll(dir, 0755)
+
+			if ctx.Format == "md" {
+				ioutil.WriteFile(outFilename, output, 0644)
+			}
+			if ctx.Format == "json" {
+				bytes, _ := json.Marshal(results)
+				ioutil.WriteFile(outFilename, bytes, 0644)
+			}
+		}
+		fmt.Printf("%s", b.String())
+	}
 }
 
 func (c *Cli) onFileStart(filename string) {
@@ -228,6 +326,8 @@ func (c *Cli) onFileEnd(filename string, input, output []byte, results []Command
 	}
 	s, success, _ := countCommandStepResults(results)
 	fmt.Printf(" %s (%d/%d)\n", s, success, len(results))
+
+	c.outputFiles(filename, input, output, results)
 }
 
 func (c *Cli) onTestStepStart(stepname string, step CommandStep) {
@@ -252,7 +352,7 @@ func (c *Cli) onTestStepEnd(stepname string, step CommandStepResult) {
 }
 
 func (c *Cli) RunFile(filename string) ([]CommandStepResult, error) {
-	results := []CommandStepResult{}
+	fileResults := []CommandStepResult{}
 
 	c.onFileStart(filename)
 	fileBytes, err := ioutil.ReadFile(filename)
@@ -268,17 +368,19 @@ func (c *Cli) RunFile(filename string) ([]CommandStepResult, error) {
 		}
 
 		steps := NewCommandSteps(name, lines)
+		stepsResults := []CommandStepResult{}
 		for _, s := range steps {
 			c.onTestStepStart(name, s)
 			r := s.Run(c.sess)
 			c.onTestStepEnd(name, r)
-			results = append(results, r)
+			stepsResults = append(stepsResults, r)
 		}
-		return nil
+		fileResults = append(fileResults, stepsResults...)
+		return convertCommandStepResults(stepsResults)
 	})
 
-	c.onFileEnd(filename, fileBytes, modified, results)
-	return results, nil
+	c.onFileEnd(filename, fileBytes, modified, fileResults)
+	return fileResults, nil
 }
 
 func (c *Cli) RunFiles(filenames []string) (map[string][]CommandStepResult, error) {
@@ -293,12 +395,17 @@ func (c *Cli) RunFiles(filenames []string) (map[string][]CommandStepResult, erro
 
 func main() {
 	var (
-		quiet   = flag.Bool("q", false, "quiet")
-		outputs = flag.String("o", "", "outputs")
+		quiet   bool
+		outputs StringList = []string{
+			"json:ok:logs/{{.TS}}/{{.BaseName}}.{{.Format}}",
+			"md:always:logs/{{.TS}}/{{.BaseName}}.{{.Format}}",
+		}
 	)
+	flag.BoolVar(&quiet, "q", false, "quiet")
+	flag.Var(&outputs, "o", "outputs")
 	flag.Parse()
 
-	cli, err := NewCli(*quiet, *outputs)
+	cli, err := NewCli(quiet, outputs)
 	if err != nil {
 		fmt.Println(err)
 	}

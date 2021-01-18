@@ -17,6 +17,6 @@ Fri Jan 1
 ```
 # for i in $(seq 3); do
 > echo $i
-> sleep 1
+> sleep 0.1
 > done
 ```

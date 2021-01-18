@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 
@@ -136,29 +135,22 @@ func walkCodeBlocks(source []byte, f func(n ast.Node, lines []string) []string) 
 	return asts, buf.Bytes()
 }
 
-func runFile(sess *ShellSession, source []byte) ([]byte, []CommandStepResult) {
-	results := []CommandStepResult{}
-
-	_, modified := walkCodeBlocks(source, func(n ast.Node, lines []string) []string {
-		var name string
-		if prev, ok := n.(*ast.FencedCodeBlock).PreviousSibling().(*ast.Heading); ok {
-			text := prev.Lines().At(0)
-			name = string(text.Value(source))
+func countCommandStepResults(results []CommandStepResult) (string, int, int) {
+	success := 0
+	fail := 0
+	for _, step := range results {
+		if step.IsOutputsExpected() {
+			success += 1
+		} else {
+			fail += 1
 		}
+	}
 
-		fmt.Printf(">>>> %s", name)
-		steps := NewCommandSteps(name, lines)
-		for _, s := range steps {
-			results = append(results, s.Run(sess))
-		}
-		return nil
-	})
-
-	return modified, results
-}
-
-func runFiles(sess *ShellSession, source []byte) {
-
+	s := "OK"
+	if success != fail {
+		s = "FAIL"
+	}
+	return s, success, fail
 }
 
 func formatCommandStepResults(name string, results []CommandStepResult) string {
@@ -178,46 +170,137 @@ func formatCommandStepResults(name string, results []CommandStepResult) string {
 // TODO: rewrite cli output
 /*
 default:
-example.t.md
+example.t.md:
   => test A
   # echo a
   a
   => test B
   # echo b
-=> !. (1/2) FAIL
+=> FAIL (1/2)
 
 -q:
-example.t.md: !.... (1/2) FAIL
+example.t.md: !.... FAIL (1/5)
 
 -o json
+  example.t.md.json
+-o md:onerr
+  example.t.err.md
+-o md:always
+  example.t.md
+
 md-err
 md-all
 json
 */
 // TODO: ansi
-func main() {
 
-	flag.Parse()
+type Cli struct {
+	sess  *ShellSession
+	quiet bool
+}
 
-	sess, err := NewShellSession(Mirror(os.Stderr))
-	if err != nil {
-		log.Println(err)
+func NewCli(quiet bool, outputs string) (*Cli, error) {
+	opts := []func(s *ShellSessionOption){}
+	if !quiet {
+		opts = append(opts, Mirror(os.Stderr))
 	}
-	results := map[string][]CommandStepResult{}
-	for _, arg := range flag.Args() {
-		fmt.Printf("== %s ==\n", arg)
-		bytes, err := ioutil.ReadFile(arg)
-		if err != nil {
-			log.Println(err)
+	sess, err := NewShellSession(opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Cli{
+		sess:  sess,
+		quiet: quiet,
+	}, nil
+}
+
+func (c *Cli) onFileStart(filename string) {
+	fmt.Printf("%s: ", filename)
+	if !c.quiet {
+		fmt.Printf("\n")
+	}
+}
+
+func (c *Cli) onFileEnd(filename string, input, output []byte, results []CommandStepResult) {
+	if !c.quiet {
+		fmt.Printf("=>")
+	}
+	s, success, _ := countCommandStepResults(results)
+	fmt.Printf(" %s (%d/%d)\n", s, success, len(results))
+}
+
+func (c *Cli) onTestStepStart(stepname string, step CommandStep) {
+	if !c.quiet {
+		fmt.Printf("  %s:\n", stepname)
+		prompt := "#"
+		for _, cmd := range step.Command {
+			fmt.Printf("  %s %s\n", prompt, cmd)
+			prompt = ">"
+		}
+	}
+}
+
+func (c *Cli) onTestStepEnd(stepname string, step CommandStepResult) {
+	if c.quiet {
+		if step.IsOutputsExpected() {
+			fmt.Print(".")
+		} else {
+			fmt.Print("!")
+		}
+	}
+}
+
+func (c *Cli) RunFile(filename string) ([]CommandStepResult, error) {
+	results := []CommandStepResult{}
+
+	c.onFileStart(filename)
+	fileBytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	_, modified := walkCodeBlocks(fileBytes, func(n ast.Node, lines []string) []string {
+		var name string
+		if prev, ok := n.(*ast.FencedCodeBlock).PreviousSibling().(*ast.Heading); ok {
+			text := prev.Lines().At(0)
+			name = string(text.Value(fileBytes))
 		}
 
-		modified, r := runFile(sess, bytes)
-		ioutil.WriteFile("out.t.md", modified, 0644)
-		fmt.Printf("<< %s >>", formatCommandStepResults(arg, r))
-		results[arg] = r
+		steps := NewCommandSteps(name, lines)
+		for _, s := range steps {
+			c.onTestStepStart(name, s)
+			r := s.Run(c.sess)
+			c.onTestStepEnd(name, r)
+			results = append(results, r)
+		}
+		return nil
+	})
+
+	c.onFileEnd(filename, fileBytes, modified, results)
+	return results, nil
+}
+
+func (c *Cli) RunFiles(filenames []string) (map[string][]CommandStepResult, error) {
+	results := map[string][]CommandStepResult{}
+
+	for _, filename := range filenames {
+		c.RunFile(filename)
 	}
 
-	// source := []byte("---\nTitle: 100\n---\n\n# test `# a:100`\n```\n# aaaa\n# bbbb\ncccc\n```\n# aaa\n[]: # aaa")
-	// fmt.Print(string(source))
-	// run(source)
+	return results, nil
+}
+
+func main() {
+	var (
+		quiet   = flag.Bool("q", false, "quiet")
+		outputs = flag.String("o", "", "outputs")
+	)
+	flag.Parse()
+
+	cli, err := NewCli(*quiet, *outputs)
+	if err != nil {
+		fmt.Println(err)
+	}
+	cli.RunFiles(flag.Args())
 }

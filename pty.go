@@ -161,6 +161,10 @@ func (s *ShellSession) Run(cmd string) string {
 	s.reader.ReadToPattern(s.preMarker)
 
 	s.ptmx.Write([]byte(cmd))
-	outputBytes := s.reader.ReadBetweenPattern(s.marker, s.marker, func(data []byte) { s.mirror.Write(data) })
+	outputBytes := s.reader.ReadBetweenPattern(s.marker, s.marker, func(data []byte) {
+		if s.mirror != nil {
+			s.mirror.Write(data)
+		}
+	})
 	return strings.TrimSuffix(string(outputBytes), "\n")
 }

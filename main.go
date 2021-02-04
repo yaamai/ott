@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/yuin/goldmark/ast"
+	"github.com/fatih/color"
 )
 
 // TODO: ansi
@@ -113,7 +114,8 @@ func (c *Cli) outputFiles(origFilename string, input, output []byte, results []C
 }
 
 func (c *Cli) onFileStart(filename string) {
-	fmt.Printf("%s: ", filename)
+	// fmt.Printf("%s: ", filename)
+	color.Cyan("%s: ", filename)
 	if !c.quiet {
 		fmt.Printf("\n")
 	}

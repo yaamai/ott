@@ -143,13 +143,21 @@ func (r *Reader) ReadBetweenPattern(startPattern, endPattern []byte, cb func(dat
 
 		if startPos != -1 && endPos == -1 {
 			if cb != nil && len(buf) > startPos {
-				cb(buf[len(buf)-l:])
+				p := len(buf)-l
+				if p < startPos {
+					p = startPos
+				}
+				cb(buf[p:])
 			}
 			return 0, nil
 		}
 
 		if cb != nil && l > len(endPattern) {
-			cb(buf[len(buf)-l : len(buf)-len(endPattern)])
+			p := len(buf)-l
+			if p < startPos {
+				p = startPos
+			}
+			cb(buf[p : len(buf)-len(endPattern)])
 		}
 
 		return endPos - startPos, buf[startPos:endPos]

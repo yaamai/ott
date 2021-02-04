@@ -1,9 +1,9 @@
 # test A
 
-```
-# echo a
-a
-```
+  ```
+  # echo a
+  a
+  ```
 
 # test B
 

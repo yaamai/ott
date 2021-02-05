@@ -114,8 +114,7 @@ func (c *Cli) outputFiles(origFilename string, input, output []byte, results []C
 }
 
 func (c *Cli) onFileStart(filename string) {
-	// fmt.Printf("%s: ", filename)
-	color.Cyan("%s: ", filename)
+	color.New(color.FgCyan, color.Bold).Printf("== %s ==\n", filename)
 	if !c.quiet {
 		fmt.Printf("\n")
 	}
@@ -133,10 +132,10 @@ func (c *Cli) onFileEnd(filename string, input, output []byte, results []Command
 
 func (c *Cli) onTestStepStart(stepname string, step CommandStep) {
 	if !c.quiet {
-		fmt.Printf("  %s:\n", stepname)
+		color.New(color.FgCyan).Printf("%s:\n", stepname)
 		prompt := "#"
 		for _, cmd := range step.Command {
-			fmt.Printf("  %s %s\n", prompt, cmd)
+			fmt.Printf("%s %s\n", prompt, cmd)
 			prompt = ">"
 		}
 	}
@@ -149,6 +148,8 @@ func (c *Cli) onTestStepEnd(stepname string, step CommandStepResult) {
 		} else {
 			fmt.Print("!")
 		}
+	} else {
+		fmt.Print("\n")
 	}
 }
 

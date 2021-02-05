@@ -20,3 +20,9 @@ Fri Jan 1
 > sleep 0.1
 > done
 ```
+
+# docker
+
+```
+# docker pull nginx:1.19.3
+```

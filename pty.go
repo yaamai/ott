@@ -41,8 +41,9 @@ func Mirror(w io.Writer) func(s *ShellSessionOption) {
 
 func DefaultShellSessionOption() ShellSessionOption {
 	marker := "###OTT###"
+	markerCmd := "###OTT-$?###"
 	cmd := exec.Command("bash")
-	cmd.Env = append(cmd.Env, "PS1="+marker)
+	cmd.Env = append(cmd.Env, "PS1="+markerCmd)
 	cmd.Env = append(cmd.Env, "PS2=")
 	cmd.Env = append(cmd.Env, "HISTFILE=/dev/null")
 	cmd.Args = append(cmd.Args, []string{"--norc", "--noprofile"}...)
@@ -132,32 +133,33 @@ func getPatternPos(buf, startPattern, endPattern []byte) (int, int) {
 	return startPos, endPos
 }
 
+func callCallback(cb func(data []byte)) {
+	if cb == nil {
+		return
+	}
+
+	cbStartPos := len(buf)-l
+	if startPos != -1 && cbStartPos < startPos {
+		cbStartPos = startPos
+	}
+	if startPos != -1 && endPos == -1 {
+		if cb != nil && len(buf) > startPos {
+			cb(buf[cbStartPos:])
+		}
+	}
+
+	if cb != nil && l > len(endPattern) {
+		cb(buf[cbStartPos: len(buf)-len(endPattern)])
+	}
+}
+
 // TODO: if read partial pattern, callback may incorrect
 func (r *Reader) ReadBetweenPattern(startPattern, endPattern []byte, cb func(data []byte)) []byte {
 	return r.ReadWithFunc(func(buf []byte, l int) (int, []byte) {
 		startPos, endPos := getPatternPos(buf, startPattern, endPattern)
-
-		if startPos == -1 && endPos == -1 {
+		callCallback(cb)
+		if startPos == -1 || endPos == -1 {
 			return 0, nil
-		}
-
-		if startPos != -1 && endPos == -1 {
-			if cb != nil && len(buf) > startPos {
-				p := len(buf)-l
-				if p < startPos {
-					p = startPos
-				}
-				cb(buf[p:])
-			}
-			return 0, nil
-		}
-
-		if cb != nil && l > len(endPattern) {
-			p := len(buf)-l
-			if p < startPos {
-				p = startPos
-			}
-			cb(buf[p : len(buf)-len(endPattern)])
 		}
 
 		return endPos - startPos, buf[startPos:endPos]

@@ -41,8 +41,8 @@ func Mirror(w io.Writer) func(s *ShellSessionOption) {
 
 func DefaultShellSessionOption() ShellSessionOption {
 	marker := "###OTT###"
-	markerCmd := "###OTT-$?###"
-	cmd := exec.Command("bash")
+	markerCmd := "###OTT-$?OTT###"
+	cmd := exec.Command("sh")
 	cmd.Env = append(cmd.Env, "PS1="+markerCmd)
 	cmd.Env = append(cmd.Env, "PS2=")
 	cmd.Env = append(cmd.Env, "HISTFILE=/dev/null")
@@ -133,12 +133,41 @@ func getPatternPos(buf, startPattern, endPattern []byte) (int, int) {
 	return startPos, endPos
 }
 
-func callCallback(cb func(data []byte)) {
+func indexMultiple(buf []byte, pattern [][]byte) [][2]int {
+	result := [][2]int{}
+	bufPos := 0
+	for _, ptn := range pattern {
+		pos := bytes.Index(buf[bufPos:], ptn)
+		if pos == -1 {
+			return nil
+		}
+		result = append(result, [2]int{bufPos + pos, bufPos + pos + len(ptn)})
+		bufPos += pos + len(ptn)
+	}
+	return result
+}
+
+func indexPatterns(buf []byte, startPattern, endPattern [][]byte) (int, int) {
+	spList := indexMultiple(buf, startPattern)
+	if spList == nil {
+		return -1, -1
+	}
+	startPos := spList[len(spList)-1][1]
+
+	epList := indexMultiple(buf[startPos:], endPattern)
+	if epList != nil {
+		return startPos, startPos + epList[0][0]
+	}
+
+	return startPos, -1
+}
+
+func callCallback(buf []byte, l int, startPos int, endPos int, cb func(data []byte)) {
 	if cb == nil {
 		return
 	}
 
-	cbStartPos := len(buf)-l
+	cbStartPos := len(buf) - l
 	if startPos != -1 && cbStartPos < startPos {
 		cbStartPos = startPos
 	}
@@ -148,22 +177,40 @@ func callCallback(cb func(data []byte)) {
 		}
 	}
 
-	if cb != nil && l > len(endPattern) {
-		cb(buf[cbStartPos: len(buf)-len(endPattern)])
+	if endPos != -1 && endPos > cbStartPos {
+		// println(string(buf), cbStartPos, startPos, endPos, l)
+		cb(buf[cbStartPos:endPos])
 	}
 }
 
-// TODO: if read partial pattern, callback may incorrect
-func (r *Reader) ReadBetweenPattern(startPattern, endPattern []byte, cb func(data []byte)) []byte {
-	return r.ReadWithFunc(func(buf []byte, l int) (int, []byte) {
+func readBetweenPatternFunc(startPattern, endPattern []byte, cb func(data []byte)) func(buf []byte, l int) (int, []byte) {
+	return func(buf []byte, l int) (int, []byte) {
 		startPos, endPos := getPatternPos(buf, startPattern, endPattern)
-		callCallback(cb)
+		callCallback(buf, l, startPos, endPos, cb)
 		if startPos == -1 || endPos == -1 {
 			return 0, nil
 		}
 
 		return endPos - startPos, buf[startPos:endPos]
-	})
+	}
+}
+
+func readBetweenMultiplePatternFunc(startPattern, endPattern [][]byte, cb func(data []byte)) func(buf []byte, l int) (int, []byte) {
+	return func(buf []byte, l int) (int, []byte) {
+		startPos, endPos := indexPatterns(buf, startPattern, endPattern)
+		// println(startPos, endPos)
+		callCallback(buf, l, startPos, endPos, cb)
+		if startPos == -1 || endPos == -1 {
+			return 0, nil
+		}
+
+		return endPos - startPos, buf[startPos:endPos]
+	}
+}
+
+// TODO: if read partial pattern, callback may incorrect
+func (r *Reader) ReadBetweenPattern(startPattern, endPattern []byte, cb func(data []byte)) []byte {
+	return r.ReadWithFunc(readBetweenPatternFunc(startPattern, endPattern, cb))
 }
 
 func (s *ShellSession) Run(cmd string) string {

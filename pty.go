@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"strconv"
 
 	"github.com/creack/pty"
 	"golang.org/x/term"
@@ -118,23 +119,29 @@ func (r *Reader) ReadToPattern(pattern []byte) []byte {
 }
 
 // TODO: support multiple patter
-func indexMultiple(buf []byte, patterns... [][]byte) [][2]int {
-	result := [][2]int{}
+func indexMultiple(buf []byte, patterns... [][]byte) [][][2]int {
+	result := [][][2]int{}
 	bufPos := 0
 	
 	for _, pattern := range patterns {
+		ptnResult := [][2]int{}
 		for _, ptn := range pattern {
 			pos := bytes.Index(buf[bufPos:], ptn)
 			if pos == -1 {
-				return nil
+				return result
 			}
-			result = append(result, [2]int{bufPos + pos, bufPos + pos + len(ptn)})
+			ptnResult = append(ptnResult, [2]int{bufPos + pos, bufPos + pos + len(ptn)})
 			bufPos += pos + len(ptn)
 		}
+		if len(ptnResult) == 0 {
+			continue
+		}
+		result = append(result, ptnResult)
 	}
 	return result
 }
 
+/*
 func indexPatterns(buf []byte, startPattern, endPattern [][]byte) (int, int, [][2]int, [][2]int) {
 	spList := indexMultiple(buf, startPattern)
 	if spList == nil {
@@ -149,6 +156,7 @@ func indexPatterns(buf []byte, startPattern, endPattern [][]byte) (int, int, [][
 
 	return startPos, -1, spList, nil
 }
+*/
 
 func callCallback(buf []byte, l int, startPos int, endPos int, cb func(data []byte)) {
 	if cb == nil {
@@ -173,14 +181,23 @@ func callCallback(buf []byte, l int, startPos int, endPos int, cb func(data []by
 // TODO: if read partial pattern, callback may incorrect
 func readBetweenMultiplePatternFunc(startPattern, endPattern [][]byte, dataCb func(data []byte), endPatternCb func(data []byte, pos [][2]int)) func(buf []byte, l int) (int, []byte) {
 	return func(buf []byte, l int) (int, []byte) {
-		startPos, endPos, _, endPosList := indexPatterns(buf, startPattern, endPattern)
+		pos := indexMultiple(buf, startPattern, endPattern)
+		startPos := -1
+		if len(pos) > 0 {
+			startPos = pos[0][len(pos[0])-1][1]
+		}
+		endPos := -1
+		if len(pos) > 1 {
+			endPos = pos[1][0][0]
+		}
+
 		callCallback(buf, l, startPos, endPos, dataCb)
 		if startPos == -1 || endPos == -1 {
 			return 0, nil
 		}
 
 		if endPatternCb != nil {
-			endPatternCb(buf, endPosList)
+			endPatternCb(buf, pos[1])
 		}
 		return endPos - startPos, buf[startPos:endPos]
 	}
@@ -197,7 +214,9 @@ func (s *ShellSession) Run(cmd string) (int, string) {
 			s.mirror.Write(data)
 		}
 	}, func(data []byte, pos [][2]int) {
-		println("end", string(data), pos[0][0], pos[0][1])
+		println("end", string(data), pos[1][0], pos[0][1])
+		i, _ := strconv.Atoi(string(data[pos[0][1]:pos[1][0]]))
+		println(i)
 	}))
 	return 0, strings.TrimSuffix(string(outputBytes), "\n")
 }

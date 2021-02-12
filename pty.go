@@ -118,7 +118,6 @@ func (r *Reader) ReadToPattern(pattern []byte) []byte {
 	})
 }
 
-// TODO: support multiple patter
 func indexMultiple(buf []byte, patterns... [][]byte) [][][2]int {
 	result := [][][2]int{}
 	bufPos := 0
@@ -141,25 +140,35 @@ func indexMultiple(buf []byte, patterns... [][]byte) [][][2]int {
 	return result
 }
 
-/*
-func indexPatterns(buf []byte, startPattern, endPattern [][]byte) (int, int, [][2]int, [][2]int) {
-	spList := indexMultiple(buf, startPattern)
-	if spList == nil {
-		return -1, -1, nil, nil
-	}
-	startPos := spList[len(spList)-1][1]
-
-	epList := indexMultiple(buf[startPos:], endPattern)
-	if epList != nil {
-		return startPos, startPos + epList[0][0], spList, epList
-	}
-
-	return startPos, -1, spList, nil
+type MultiPatternParser struct {
+	startPattern, endPattern [][]byte
+	dataCb func(data []byte)
+	startPatternCb, endPatternCb func(data []byte, pos [][2]int)
 }
-*/
 
-func callCallback(buf []byte, l int, startPos int, endPos int, cb func(data []byte)) {
-	if cb == nil {
+func (p *MultiPatternParser) Parse(buf []byte, l int) (int, []byte) {
+	pos := indexMultiple(buf, p.startPattern, p.endPattern)
+	startPos := -1
+	if len(pos) > 0 {
+		startPos = pos[0][len(pos[0])-1][1]
+	}
+	endPos := -1
+	if len(pos) > 1 {
+		endPos = pos[1][0][0]
+	}
+
+	p.callDataCallback(buf, l, startPos, endPos)
+	p.callPatternCallback(buf, pos)
+
+	if startPos == -1 || endPos == -1 {
+		return 0, nil
+	}
+	return endPos - startPos, buf[startPos:endPos]
+}
+
+// TODO: if read partial pattern, callback may incorrect
+func (p *MultiPatternParser) callDataCallback(buf []byte, l int, startPos int, endPos int) {
+	if p.dataCb == nil {
 		return
 	}
 
@@ -168,55 +177,55 @@ func callCallback(buf []byte, l int, startPos int, endPos int, cb func(data []by
 		cbStartPos = startPos
 	}
 	if startPos != -1 && endPos == -1 {
-		if cb != nil && len(buf) > startPos {
-			cb(buf[cbStartPos:])
+		if p.dataCb != nil && len(buf) > startPos {
+			p.dataCb(buf[cbStartPos:])
 		}
 	}
 
 	if endPos != -1 && endPos > cbStartPos {
-		cb(buf[cbStartPos:endPos])
+		p.dataCb(buf[cbStartPos:endPos])
 	}
 }
 
-// TODO: if read partial pattern, callback may incorrect
-func readBetweenMultiplePatternFunc(startPattern, endPattern [][]byte, dataCb func(data []byte), endPatternCb func(data []byte, pos [][2]int)) func(buf []byte, l int) (int, []byte) {
-	return func(buf []byte, l int) (int, []byte) {
-		pos := indexMultiple(buf, startPattern, endPattern)
-		startPos := -1
-		if len(pos) > 0 {
-			startPos = pos[0][len(pos[0])-1][1]
-		}
-		endPos := -1
-		if len(pos) > 1 {
-			endPos = pos[1][0][0]
-		}
-
-		callCallback(buf, l, startPos, endPos, dataCb)
-		if startPos == -1 || endPos == -1 {
-			return 0, nil
-		}
-
-		if endPatternCb != nil {
-			endPatternCb(buf, pos[1])
-		}
-		return endPos - startPos, buf[startPos:endPos]
+func (p *MultiPatternParser) callPatternCallback(buf []byte, pos [][][2]int) {
+	if len(pos) > 0 && p.startPatternCb != nil {
+		p.startPatternCb(buf, pos[0])
+	}
+	if len(pos) > 1 && p.endPatternCb != nil {
+		p.endPatternCb(buf, pos[1])
 	}
 }
+
+type ShellParser struct {
+	MultiPatternParser
+	rc int
+	mirror     io.Writer
+}
+
+func (p *ShellParser) mirrorData(data []byte) {
+	if p.mirror != nil {
+		p.mirror.Write(data)
+	}
+}
+
+func (p *ShellParser) parseReturnCode(data []byte, pos [][2]int) {
+	i, err := strconv.Atoi(string(data[pos[0][1]:pos[1][0]]))
+	if err != nil {
+		p.rc = i
+	} else {
+		p.rc = -1
+	}
+}
+
 
 func (s *ShellSession) Run(cmd string) (int, string) {
 	s.ptmx.Write(s.preCommand)
 	s.reader.ReadToPattern(s.preMarker)
 
 	s.ptmx.Write([]byte(cmd))
-	// TODO: separate to struct and ReadWith(Interface)
-	outputBytes := s.reader.ReadWithFunc(readBetweenMultiplePatternFunc(s.marker, s.marker, func(data []byte) {
-		if s.mirror != nil {
-			s.mirror.Write(data)
-		}
-	}, func(data []byte, pos [][2]int) {
-		println("end", string(data), pos[1][0], pos[0][1])
-		i, _ := strconv.Atoi(string(data[pos[0][1]:pos[1][0]]))
-		println(i)
-	}))
-	return 0, strings.TrimSuffix(string(outputBytes), "\n")
+	p := ShellParser{MultiPatternParser: MultiPatternParser{startPattern: s.marker, endPattern: s.marker}, mirror: s.mirror}
+	p.dataCb = p.mirrorData
+	p.endPatternCb = p.parseReturnCode
+	outputBytes := s.reader.ReadWithFunc(p.Parse)
+	return p.rc, strings.TrimSuffix(string(outputBytes), "\n")
 }

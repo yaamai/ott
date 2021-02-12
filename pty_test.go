@@ -27,38 +27,17 @@ func TestIndexMultiple(t *testing.T) {
 	}
 }
 
-/*
-func TestIndexPattern(t *testing.T) {
-	{
-		buf := []byte("###100###DATA###200###")
-		ptn := [][]byte{[]byte("###"), []byte("###")}
-		startPos, endPos, _, _ := indexPatterns(buf, ptn, ptn)
-		assert.Equal(t, 9, startPos)
-		assert.Equal(t, 13, endPos)
-		assert.Equal(t, []byte("DATA"), buf[startPos:endPos])
-	}
-	{
-		buf := []byte("###100###DATA###0###")
-		ptn := [][]byte{[]byte("###"), []byte("###")}
-		startPos, endPos, _, _ := indexPatterns(buf, ptn, ptn)
-		assert.Equal(t, 9, startPos)
-		assert.Equal(t, 13, endPos)
-		assert.Equal(t, []byte("DATA"), buf[startPos:endPos])
-	}
-}
-*/
-
-func TestReadBetweenMulutiplePatternFunc(t *testing.T) {
+func TestMultiPatternParser(t *testing.T) {
 	buf := make([]byte, 0, 32)
 	cbBuf := [][]byte{}
 	cbFn := func(data []byte) { cbBuf = append(cbBuf, data) }
 	ptn := [][]byte{[]byte("###"), []byte("###")}
 	dataIn := [][]byte{[]byte("###"), []byte("100###"), []byte("D"), []byte("ATA"), []byte("###0###")}
 
-	f := readBetweenMultiplePatternFunc(ptn, ptn, cbFn, nil)
+	p := MultiPatternParser{ptn, ptn, cbFn, nil, nil}
 	for idx, d := range dataIn {
 		buf = append(buf, d...)
-		_, data := f(buf, len(d))
+		_, data := p.Parse(buf, len(d))
 
 		if idx == len(dataIn)-1 {
 			expectCb := [][]byte{[]byte("D"), []byte("ATA")}

@@ -68,5 +68,5 @@ func TestFailureCommand(t *testing.T) {
 	assert.NotNil(t, sess)
 
 	_, output := sess.Run(";\n")
-	assert.Equal(t, "bash: syntax error near unexpected token `;'", output)
+	assert.Equal(t, "sh: syntax error near unexpected token `;'", output)
 }

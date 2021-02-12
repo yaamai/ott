@@ -5,8 +5,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/creack/pty"
 	"golang.org/x/term"
@@ -26,6 +26,7 @@ type ShellSessionOption struct {
 	winsize    pty.Winsize
 	buffer     int
 	mirror     io.Writer
+	parser     ShellParser
 }
 
 func Cmd(c *exec.Cmd) func(s *ShellSessionOption) {
@@ -42,7 +43,7 @@ func Mirror(w io.Writer) func(s *ShellSessionOption) {
 
 func DefaultShellSessionOption() ShellSessionOption {
 	marker := [][]byte{[]byte("###OTT"), []byte("OTT###")}
-	cmd := exec.Command("bash")
+	cmd := exec.Command("sh")
 	cmd.Env = append(cmd.Env, "PS1="+string(marker[0])+"$?"+string(marker[1]))
 	cmd.Env = append(cmd.Env, "PS2=")
 	cmd.Env = append(cmd.Env, "HISTFILE=/dev/null")
@@ -77,6 +78,7 @@ func NewShellSession(opts ...func(s *ShellSessionOption)) (*ShellSession, error)
 	term.MakeRaw(int(ptmx.Fd()))
 
 	sess.reader = NewReader(sess.buffer, ptmx)
+	sess.parser = NewShellParser(sess.marker, sess.mirror)
 	return sess, nil
 }
 
@@ -118,10 +120,10 @@ func (r *Reader) ReadToPattern(pattern []byte) []byte {
 	})
 }
 
-func indexMultiple(buf []byte, patterns... [][]byte) [][][2]int {
+func indexMultiple(buf []byte, patterns ...[][]byte) [][][2]int {
 	result := [][][2]int{}
 	bufPos := 0
-	
+
 	for _, pattern := range patterns {
 		ptnResult := [][2]int{}
 		for _, ptn := range pattern {
@@ -141,8 +143,8 @@ func indexMultiple(buf []byte, patterns... [][]byte) [][][2]int {
 }
 
 type MultiPatternParser struct {
-	startPattern, endPattern [][]byte
-	dataCb func(data []byte)
+	startPattern, endPattern     [][]byte
+	dataCb                       func(data []byte)
 	startPatternCb, endPatternCb func(data []byte, pos [][2]int)
 }
 
@@ -198,8 +200,15 @@ func (p *MultiPatternParser) callPatternCallback(buf []byte, pos [][][2]int) {
 
 type ShellParser struct {
 	MultiPatternParser
-	rc int
-	mirror     io.Writer
+	rc     int
+	mirror io.Writer
+}
+
+func NewShellParser(marker [][]byte, mirror io.Writer) ShellParser {
+	p := ShellParser{MultiPatternParser: MultiPatternParser{startPattern: marker, endPattern: marker}, mirror: mirror}
+	p.dataCb = p.mirrorData
+	p.endPatternCb = p.parseReturnCode
+	return p
 }
 
 func (p *ShellParser) mirrorData(data []byte) {
@@ -217,15 +226,11 @@ func (p *ShellParser) parseReturnCode(data []byte, pos [][2]int) {
 	}
 }
 
-
 func (s *ShellSession) Run(cmd string) (int, string) {
 	s.ptmx.Write(s.preCommand)
 	s.reader.ReadToPattern(s.preMarker)
 
 	s.ptmx.Write([]byte(cmd))
-	p := ShellParser{MultiPatternParser: MultiPatternParser{startPattern: s.marker, endPattern: s.marker}, mirror: s.mirror}
-	p.dataCb = p.mirrorData
-	p.endPatternCb = p.parseReturnCode
-	outputBytes := s.reader.ReadWithFunc(p.Parse)
-	return p.rc, strings.TrimSuffix(string(outputBytes), "\n")
+	outputBytes := s.reader.ReadWithFunc(s.parser.Parse)
+	return s.parser.rc, strings.TrimSuffix(string(outputBytes), "\n")
 }

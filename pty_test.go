@@ -46,27 +46,6 @@ func TestIndexPattern(t *testing.T) {
 	}
 }
 
-func TestReadBetweenPatternFunc(t *testing.T) {
-	buf := make([]byte, 16)
-	cbBuf := [][]byte{}
-	cbFn := func(data []byte) { cbBuf = append(cbBuf, data) }
-	f := readBetweenPatternFunc([]byte("AAA"), []byte("BBB"), cbFn)
-
-	buf = append(buf, []byte("AAAD")...)
-	_, data := f(buf, 4)
-	assert.Nil(t, data)
-
-	buf = append(buf, []byte("AT")...)
-	_, data = f(buf, 2)
-	assert.Nil(t, data)
-
-	buf = append(buf, []byte("ABBB")...)
-	_, data = f(buf, 4)
-
-	assert.Equal(t, []byte("DATA"), data)
-	assert.Equal(t, [][]byte{[]byte("D"), []byte("AT"), []byte("A")}, cbBuf)
-}
-
 func TestReadBetweenMulutiplePatternFunc(t *testing.T) {
 	buf := make([]byte, 0, 32)
 	cbBuf := [][]byte{}
@@ -90,7 +69,6 @@ func TestReadBetweenMulutiplePatternFunc(t *testing.T) {
 	}
 }
 
-/*
 func TestExecuteCommandStability(t *testing.T) {
 	sess, err := NewShellSession()
 	assert.Nil(t, err)
@@ -111,4 +89,3 @@ func TestFailureCommand(t *testing.T) {
 	output := sess.Run(";\n")
 	assert.Equal(t, "bash: syntax error near unexpected token `;'", output)
 }
-*/

@@ -31,7 +31,7 @@ func TestIndexPattern(t *testing.T) {
 	{
 		buf := []byte("###100###DATA###200###")
 		ptn := [][]byte{[]byte("###"), []byte("###")}
-		startPos, endPos := indexPatterns(buf, ptn, ptn)
+		startPos, endPos, _, _ := indexPatterns(buf, ptn, ptn)
 		assert.Equal(t, 9, startPos)
 		assert.Equal(t, 13, endPos)
 		assert.Equal(t, []byte("DATA"), buf[startPos:endPos])
@@ -39,7 +39,7 @@ func TestIndexPattern(t *testing.T) {
 	{
 		buf := []byte("###100###DATA###0###")
 		ptn := [][]byte{[]byte("###"), []byte("###")}
-		startPos, endPos := indexPatterns(buf, ptn, ptn)
+		startPos, endPos, _, _ := indexPatterns(buf, ptn, ptn)
 		assert.Equal(t, 9, startPos)
 		assert.Equal(t, 13, endPos)
 		assert.Equal(t, []byte("DATA"), buf[startPos:endPos])
@@ -53,7 +53,7 @@ func TestReadBetweenMulutiplePatternFunc(t *testing.T) {
 	ptn := [][]byte{[]byte("###"), []byte("###")}
 	dataIn := [][]byte{[]byte("###"), []byte("100###"), []byte("D"), []byte("ATA"), []byte("###0###")}
 
-	f := readBetweenMultiplePatternFunc(ptn, ptn, cbFn)
+	f := readBetweenMultiplePatternFunc(ptn, ptn, cbFn, nil)
 	for idx, d := range dataIn {
 		buf = append(buf, d...)
 		_, data := f(buf, len(d))
@@ -74,8 +74,8 @@ func TestExecuteCommandStability(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, sess)
 
-	for idx := 0; idx < 100; idx += 1 {
-		output := sess.Run("echo a\n")
+	for idx := 0; idx < 1; idx += 1 {
+		_, output := sess.Run("echo a\n")
 		// log.Println(idx, output)
 		assert.Equal(t, "a", output)
 	}
@@ -86,6 +86,6 @@ func TestFailureCommand(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, sess)
 
-	output := sess.Run(";\n")
+	_, output := sess.Run(";\n")
 	assert.Equal(t, "bash: syntax error near unexpected token `;'", output)
 }

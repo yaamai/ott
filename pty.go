@@ -41,7 +41,7 @@ func Mirror(w io.Writer) func(s *ShellSessionOption) {
 
 func DefaultShellSessionOption() ShellSessionOption {
 	marker := [][]byte{[]byte("###OTT"), []byte("OTT###")}
-	cmd := exec.Command("sh")
+	cmd := exec.Command("bash")
 	cmd.Env = append(cmd.Env, "PS1="+string(marker[0])+"$?"+string(marker[1]))
 	cmd.Env = append(cmd.Env, "PS2=")
 	cmd.Env = append(cmd.Env, "HISTFILE=/dev/null")
@@ -99,7 +99,8 @@ func (r *Reader) ReadWithFunc(f func([]byte, int) (int, []byte)) []byte {
 
 		l, output := f(r.buf[r.rpos:r.wpos], l)
 		if output != nil {
-			r.rpos += l
+			r.rpos = 0
+			r.wpos = 0
 			return output
 		}
 	}
@@ -116,33 +117,37 @@ func (r *Reader) ReadToPattern(pattern []byte) []byte {
 	})
 }
 
-func indexMultiple(buf []byte, pattern [][]byte) [][2]int {
+// TODO: support multiple patter
+func indexMultiple(buf []byte, patterns... [][]byte) [][2]int {
 	result := [][2]int{}
 	bufPos := 0
-	for _, ptn := range pattern {
-		pos := bytes.Index(buf[bufPos:], ptn)
-		if pos == -1 {
-			return nil
+	
+	for _, pattern := range patterns {
+		for _, ptn := range pattern {
+			pos := bytes.Index(buf[bufPos:], ptn)
+			if pos == -1 {
+				return nil
+			}
+			result = append(result, [2]int{bufPos + pos, bufPos + pos + len(ptn)})
+			bufPos += pos + len(ptn)
 		}
-		result = append(result, [2]int{bufPos + pos, bufPos + pos + len(ptn)})
-		bufPos += pos + len(ptn)
 	}
 	return result
 }
 
-func indexPatterns(buf []byte, startPattern, endPattern [][]byte) (int, int) {
+func indexPatterns(buf []byte, startPattern, endPattern [][]byte) (int, int, [][2]int, [][2]int) {
 	spList := indexMultiple(buf, startPattern)
 	if spList == nil {
-		return -1, -1
+		return -1, -1, nil, nil
 	}
 	startPos := spList[len(spList)-1][1]
 
 	epList := indexMultiple(buf[startPos:], endPattern)
 	if epList != nil {
-		return startPos, startPos + epList[0][0]
+		return startPos, startPos + epList[0][0], spList, epList
 	}
 
-	return startPos, -1
+	return startPos, -1, spList, nil
 }
 
 func callCallback(buf []byte, l int, startPos int, endPos int, cb func(data []byte)) {
@@ -166,27 +171,33 @@ func callCallback(buf []byte, l int, startPos int, endPos int, cb func(data []by
 }
 
 // TODO: if read partial pattern, callback may incorrect
-func readBetweenMultiplePatternFunc(startPattern, endPattern [][]byte, cb func(data []byte)) func(buf []byte, l int) (int, []byte) {
+func readBetweenMultiplePatternFunc(startPattern, endPattern [][]byte, dataCb func(data []byte), endPatternCb func(data []byte, pos [][2]int)) func(buf []byte, l int) (int, []byte) {
 	return func(buf []byte, l int) (int, []byte) {
-		startPos, endPos := indexPatterns(buf, startPattern, endPattern)
-		callCallback(buf, l, startPos, endPos, cb)
+		startPos, endPos, _, endPosList := indexPatterns(buf, startPattern, endPattern)
+		callCallback(buf, l, startPos, endPos, dataCb)
 		if startPos == -1 || endPos == -1 {
 			return 0, nil
 		}
 
+		if endPatternCb != nil {
+			endPatternCb(buf, endPosList)
+		}
 		return endPos - startPos, buf[startPos:endPos]
 	}
 }
 
-func (s *ShellSession) Run(cmd string) string {
+func (s *ShellSession) Run(cmd string) (int, string) {
 	s.ptmx.Write(s.preCommand)
 	s.reader.ReadToPattern(s.preMarker)
 
 	s.ptmx.Write([]byte(cmd))
+	// TODO: separate to struct and ReadWith(Interface)
 	outputBytes := s.reader.ReadWithFunc(readBetweenMultiplePatternFunc(s.marker, s.marker, func(data []byte) {
 		if s.mirror != nil {
 			s.mirror.Write(data)
 		}
+	}, func(data []byte, pos [][2]int) {
+		println("end", string(data), pos[0][0], pos[0][1])
 	}))
-	return strings.TrimSuffix(string(outputBytes), "\n")
+	return 0, strings.TrimSuffix(string(outputBytes), "\n")
 }

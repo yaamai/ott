@@ -49,7 +49,7 @@ func NewCommandSteps(name string, lines []string) []CommandStep {
 }
 
 func (c CommandStep) Run(s *ShellSession) CommandStepResult {
-	result := s.Run(strings.Join(c.Command, "\n") + "\n")
+	_, result := s.Run(strings.Join(c.Command, "\n") + "\n")
 	o := CommandStepResult{CommandStep: c, ActualOutput: strings.Split(result, "\n")}
 	return o
 }

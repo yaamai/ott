@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Kunde21/markdownfmt/v2/markdown"
@@ -13,17 +15,59 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
+// CommandStep represents a command-line
 type CommandStep struct {
-	Name    string   `json:"name"`
-	Command []string `json:"command"`
-	Output  []string `json:"output"`
+	Name    string    `json:"name"`
+	Command []string  `json:"command"`
+	Output  []string  `json:"output"`
+	Checker []Checker `json:"checker"`
 }
 
+// CommandStepResult represents executed CommandStep results
 type CommandStepResult struct {
 	CommandStep
 	ActualOutput []string `json:"actual"`
+	Rc           int      `json:"rc"`
 }
 
+// Checker is check CommandStepResult output
+type Checker interface {
+	IsMatch() bool
+}
+
+// RcChecker is return-code based checker
+type RcChecker struct {
+	oper  string
+	value int
+}
+
+// NewRcChecker creates RcChecker
+func NewRcChecker(l string) *RcChecker {
+	if rcMatch := RegexpRcMatch.FindStringSubmatch(l); rcMatch != nil {
+		if rcMatch[2] == "" {
+			return &RcChecker{oper: "==", value: 0}
+		}
+
+		rc, err := strconv.Atoi(rcMatch[3])
+		if err != nil {
+			return nil
+		}
+		return &RcChecker{oper: rcMatch[2], value: rc}
+	}
+	return nil
+}
+
+// IsMatch checks results has expected return code
+func (m RcChecker) IsMatch() bool {
+	return true
+}
+
+var (
+	// RegexpRcMatch matches expressions for return code based checker
+	RegexpRcMatch = regexp.MustCompile(`\(rc\s*((==|!=|<|>|<=|>=)([0-9]+))?\)$`)
+)
+
+// NewCommandSteps parses command-step string arrays to CommandStep
 func NewCommandSteps(name string, lines []string) []CommandStep {
 	steps := []CommandStep{}
 	s := CommandStep{}
@@ -38,7 +82,11 @@ func NewCommandSteps(name string, lines []string) []CommandStep {
 		} else if strings.HasPrefix(l, "> ") {
 			s.Command = append(s.Command, strings.TrimPrefix(l, "> "))
 		} else {
-			s.Output = append(s.Output, l)
+			if m := NewRcChecker(l); m != nil {
+				s.Checker = append(s.Checker, m)
+			} else {
+				s.Output = append(s.Output, l)
+			}
 		}
 	}
 	if len(s.Command) > 0 {
@@ -48,13 +96,22 @@ func NewCommandSteps(name string, lines []string) []CommandStep {
 	return steps
 }
 
+// Run execute CommandStep and return CommandStepResult
 func (c CommandStep) Run(s *ShellSession) CommandStepResult {
-	_, result := s.Run(strings.Join(c.Command, "\n") + "\n")
-	o := CommandStepResult{CommandStep: c, ActualOutput: strings.Split(result, "\n")}
+	rc, result := s.Run(strings.Join(c.Command, "\n") + "\n")
+	o := CommandStepResult{CommandStep: c, ActualOutput: strings.Split(result, "\n"), Rc: rc}
 	return o
 }
 
+// IsOutputsExpected checks CommandStepResult is expected outputs or not
 func (c CommandStepResult) IsOutputsExpected() bool {
+	// check special matcher
+	for idx := range c.Checker {
+		if !c.Checker[idx].IsMatch() {
+			return false
+		}
+	}
+
 	if len(c.Output) != len(c.ActualOutput) {
 		return false
 	}
@@ -68,6 +125,7 @@ func (c CommandStepResult) IsOutputsExpected() bool {
 	return true
 }
 
+// StringLines convert CommandStepResult to array of string
 func (c CommandStepResult) StringLines() []string {
 	result := []string{}
 	prompt := "#"
@@ -151,9 +209,9 @@ func countCommandStepResults(results []CommandStepResult) (string, int, int) {
 	fail := 0
 	for _, step := range results {
 		if step.IsOutputsExpected() {
-			success += 1
+			success++
 		} else {
-			fail += 1
+			fail++
 		}
 	}
 

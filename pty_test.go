@@ -55,7 +55,7 @@ func TestExecuteCommandStability(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, sess)
 
-	for idx := 0; idx < 1; idx += 1 {
+	for idx := 0; idx < 1; idx++ {
 		_, output := sess.Run("echo a\n")
 		// log.Println(idx, output)
 		assert.Equal(t, "a", output)

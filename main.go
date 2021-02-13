@@ -11,8 +11,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/yuin/goldmark/ast"
 	"github.com/fatih/color"
+	"github.com/yuin/goldmark/ast"
 )
 
 // TODO: ansi
@@ -21,23 +21,27 @@ import (
 // TODO: matcher(ignore)
 // TODO: matcher(has)
 
+// StringList implements array flags
 type StringList []string
 
 func (i *StringList) String() string {
 	return strings.Join(*i, ",")
 }
 
+// Set implements flags.Set() interface
 func (i *StringList) Set(value string) error {
 	*i = append(*i, value)
 	return nil
 }
 
+// Cli represents CLI
 type Cli struct {
 	sess    *ShellSession
 	quiet   bool
 	outputs []string
 }
 
+// NewCli create Cli instance
 func NewCli(quiet bool, outputs []string) (*Cli, error) {
 	opts := []func(s *ShellSessionOption){}
 	if !quiet {
@@ -55,6 +59,7 @@ func NewCli(quiet bool, outputs []string) (*Cli, error) {
 	}, nil
 }
 
+// TemplateContext represents tests output filename template context datas
 type TemplateContext struct {
 	FileName string
 	BaseName string
@@ -153,6 +158,7 @@ func (c *Cli) onTestStepEnd(stepname string, step CommandStepResult) {
 	}
 }
 
+// RunFile runs file-based tests
 func (c *Cli) RunFile(filename string) ([]CommandStepResult, error) {
 	fileResults := []CommandStepResult{}
 
@@ -185,6 +191,7 @@ func (c *Cli) RunFile(filename string) ([]CommandStepResult, error) {
 	return fileResults, nil
 }
 
+// RunFiles runs multiple file-based tests
 func (c *Cli) RunFiles(filenames []string) (map[string][]CommandStepResult, error) {
 	results := map[string][]CommandStepResult{}
 

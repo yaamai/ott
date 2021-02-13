@@ -6,16 +6,20 @@ import (
 )
 
 const (
-	AUTO_EXPAND_COL = 80
-	AUTO_EXPAND_ROW = 24
+	// AutoExpandCols is default expand size
+	AutoExpandCols = 80
+	// AutoExpandRows is default expand size
+	AutoExpandRows = 24
 )
 
+// Cursor represents terminal cursor
 type Cursor struct {
 	x, y int
 	lx   map[int]int
 	ly   int
 }
 
+// NewCursor creates Cursor
 func NewCursor() *Cursor {
 	return &Cursor{
 		x: 0, y: 0,
@@ -24,16 +28,19 @@ func NewCursor() *Cursor {
 	}
 }
 
+// Up do a cursor up
 func (c *Cursor) Up(n int) {
 	c.y -= n
 	c.ly = c.y
 }
 
+// Down do a cursor down
 func (c *Cursor) Down(n int) {
 	c.y += n
 	c.ly = c.y
 }
 
+// Left do a cursor left
 func (c *Cursor) Left(n int) {
 	if n == -1 {
 		c.x = 0
@@ -43,22 +50,26 @@ func (c *Cursor) Left(n int) {
 	}
 }
 
+// Right do a cursor right
 func (c *Cursor) Right(n int) {
 	c.x += n
 	c.lx[c.y] = c.x
 }
 
+// Clear do a cursor position clear (to line headings)
 func (c *Cursor) Clear(n int) {
 	// FIXME: impl n=0,1
 	c.lx[c.y] = 0
 }
 
+// Terminal represents vt100 based terminal (partially)
 type Terminal struct {
 	data   [][]rune
 	c      *Cursor
 	sx, sy int
 }
 
+// NewTerminal creates Terminal
 func NewTerminal(sx, sy int) *Terminal {
 	data := make([][]rune, sy)
 	for i := range data {
@@ -73,27 +84,7 @@ func NewTerminal(sx, sy int) *Terminal {
 	}
 }
 
-func RuneStringWithoutNull(ra []rune) string {
-	// NOTE: string([]rune) outputs "\x00" runes.
-	//       need to consinder write length (hold cursor pos?)
-	for idx, r := range ra {
-		if r == '\x00' {
-			return string(ra[:idx])
-		}
-	}
-
-	return ""
-}
-
-func StripEmptyLines(in []string) []string {
-	for idx := len(in) - 1; idx >= 0; idx-- {
-		if len(in[idx]) != 0 {
-			return in[:idx+1]
-		}
-	}
-	return []string{}
-}
-
+// StringLines converts terminal data to string array
 func (t Terminal) StringLines() []string {
 	ret := []string{}
 
@@ -108,6 +99,7 @@ func (t Terminal) String() string {
 	return strings.Join(t.StringLines(), "\n")
 }
 
+// GetCSISequence calculates CSI sequences length
 func GetCSISequence(buf []byte) int {
 	for idx, c := range buf {
 		if c >= 0x40 && c <= 0x7e {
@@ -120,19 +112,20 @@ func GetCSISequence(buf []byte) int {
 func (t *Terminal) alloc() {
 	curRow := len(t.data)
 	if t.c.y >= curRow {
-		buf := make([][]rune, curRow+AUTO_EXPAND_ROW)
+		buf := make([][]rune, curRow+AutoExpandRows)
 		copy(buf, t.data)
 		t.data = buf
 	}
 
 	curCol := len(t.data[t.c.y])
 	if t.c.x >= curCol {
-		buf := make([]rune, curCol+AUTO_EXPAND_COL)
+		buf := make([]rune, curCol+AutoExpandCols)
 		copy(buf, t.data[t.c.y])
 		t.data[t.c.y] = buf
 	}
 }
 
+// Data puts rune to terminal
 func (t *Terminal) Data(r rune) {
 	t.alloc()
 	t.data[t.c.y][t.c.x] = r
@@ -149,19 +142,14 @@ func (t *Terminal) Write(buf []byte) {
 				typ := buf[3]
 				switch typ {
 				case '\x41':
-					// Cursor Up
 					t.c.Up(int(n))
 				case '\x42':
-					// Cursor Down
 					t.c.Down(int(n))
 				case '\x43':
-					// Cursor Down
 					t.c.Right(int(n))
 				case '\x44':
-					// Cursor Down
 					t.c.Left(int(n))
 				case '\x4b':
-					// clear line
 					t.c.Clear(int(n))
 				}
 

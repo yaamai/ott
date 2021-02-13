@@ -12,12 +12,14 @@ import (
 	"golang.org/x/term"
 )
 
+// ShellSession represents shell running session
 type ShellSession struct {
 	ShellSessionOption
 	ptmx   *os.File
 	reader *Reader
 }
 
+// ShellSessionOption represents shell running options
 type ShellSessionOption struct {
 	marker     [][]byte
 	cmd        *exec.Cmd
@@ -29,18 +31,21 @@ type ShellSessionOption struct {
 	parser     ShellParser
 }
 
+// Cmd sets command to execute in ShellSession
 func Cmd(c *exec.Cmd) func(s *ShellSessionOption) {
 	return func(s *ShellSessionOption) {
 		s.cmd = c
 	}
 }
 
+// Mirror sets output mirroring destination for ShellSession
 func Mirror(w io.Writer) func(s *ShellSessionOption) {
 	return func(s *ShellSessionOption) {
 		s.mirror = w
 	}
 }
 
+// DefaultShellSessionOption returns default ShellSessionOption
 func DefaultShellSessionOption() ShellSessionOption {
 	marker := [][]byte{[]byte("###OTT"), []byte("OTT###")}
 	cmd := exec.Command("sh")
@@ -63,6 +68,7 @@ func DefaultShellSessionOption() ShellSessionOption {
 	}
 }
 
+// NewShellSession creates ShellSession with opts
 func NewShellSession(opts ...func(s *ShellSessionOption)) (*ShellSession, error) {
 	sess := &ShellSession{}
 	sess.ShellSessionOption = DefaultShellSessionOption()
@@ -82,12 +88,14 @@ func NewShellSession(opts ...func(s *ShellSessionOption)) (*ShellSession, error)
 	return sess, nil
 }
 
+// Reader is flexible byte array reader
 type Reader struct {
 	base       io.Reader
 	buf        []byte
 	rpos, wpos int
 }
 
+// NewReader creates Reader with underlay io.Reader
 func NewReader(size int, r io.Reader) *Reader {
 	return &Reader{
 		base: r,
@@ -95,6 +103,7 @@ func NewReader(size int, r io.Reader) *Reader {
 	}
 }
 
+// ReadWithFunc reads bytes array with specified condition
 func (r *Reader) ReadWithFunc(f func([]byte, int) (int, []byte)) []byte {
 	for {
 		l, _ := r.base.Read(r.buf[r.wpos:])
@@ -109,6 +118,7 @@ func (r *Reader) ReadWithFunc(f func([]byte, int) (int, []byte)) []byte {
 	}
 }
 
+// ReadToPattern reads bytes array to specified patterns founds
 func (r *Reader) ReadToPattern(pattern []byte) []byte {
 	return r.ReadWithFunc(func(buf []byte, l int) (int, []byte) {
 		pos := bytes.Index(buf, pattern)
@@ -142,12 +152,14 @@ func indexMultiple(buf []byte, patterns ...[][]byte) [][][2]int {
 	return result
 }
 
+// MultiPatternParser is pattern based bytes array parser
 type MultiPatternParser struct {
 	startPattern, endPattern     [][]byte
 	dataCb                       func(data []byte)
 	startPatternCb, endPatternCb func(data []byte, pos [][2]int)
 }
 
+// Parse implements Reader's Parse function
 func (p *MultiPatternParser) Parse(buf []byte, l int) (int, []byte) {
 	pos := indexMultiple(buf, p.startPattern, p.endPattern)
 	startPos := -1
@@ -198,12 +210,14 @@ func (p *MultiPatternParser) callPatternCallback(buf []byte, pos [][][2]int) {
 	}
 }
 
+// ShellParser is shell-output adjusted MultiPatternParser
 type ShellParser struct {
 	MultiPatternParser
 	rc     int
 	mirror io.Writer
 }
 
+// NewShellParser creates ShellParser
 func NewShellParser(marker [][]byte, mirror io.Writer) ShellParser {
 	p := ShellParser{MultiPatternParser: MultiPatternParser{startPattern: marker, endPattern: marker}, mirror: mirror}
 	p.dataCb = p.mirrorData
@@ -226,6 +240,7 @@ func (p *ShellParser) parseReturnCode(data []byte, pos [][2]int) {
 	}
 }
 
+// Run runs command in ShellSession
 func (s *ShellSession) Run(cmd string) (int, string) {
 	s.ptmx.Write(s.preCommand)
 	s.reader.ReadToPattern(s.preMarker)

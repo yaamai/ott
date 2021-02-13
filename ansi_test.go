@@ -24,14 +24,14 @@ func TestTerminalAutoExpand(t *testing.T) {
 	term.Write([]byte("A"))
 	assert.Equal(t, []string{"A"}, term.StringLines())
 
-	b := bytes.Repeat([]byte("B"), AUTO_EXPAND_COL+4)
+	b := bytes.Repeat([]byte("B"), AutoExpandCols+4)
 	term.Write(b)
 	assert.Equal(t, []string{"A" + string(b)}, term.StringLines())
 
-	c := bytes.Repeat([]byte("C"), AUTO_EXPAND_COL)
-	term.Write(bytes.Repeat(append(c, 0x0a), AUTO_EXPAND_ROW+4))
+	c := bytes.Repeat([]byte("C"), AutoExpandCols)
+	term.Write(bytes.Repeat(append(c, 0x0a), AutoExpandRows+4))
 	expect := []string{"A" + string(b) + string(c)}
-	for idx := 1; idx < AUTO_EXPAND_ROW+4; idx++ {
+	for idx := 1; idx < AutoExpandRows+4; idx++ {
 		expect = append(expect, string(c))
 	}
 	expect = append(expect, string(""))

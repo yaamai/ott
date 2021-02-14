@@ -3,90 +3,8 @@ package main
 import (
 	"bytes"
 	"io"
-	"os"
-	"os/exec"
 	"strconv"
-	"strings"
-
-	"github.com/creack/pty"
-	"golang.org/x/term"
 )
-
-// ShellSession represents shell running session
-type ShellSession struct {
-	ShellSessionOption
-	ptmx   *os.File
-	reader *Reader
-}
-
-// ShellSessionOption represents shell running options
-type ShellSessionOption struct {
-	marker     [][]byte
-	cmd        *exec.Cmd
-	preMarker  []byte
-	preCommand []byte
-	winsize    pty.Winsize
-	buffer     int
-	mirror     io.Writer
-	parser     *ShellParser
-}
-
-// Cmd sets command to execute in ShellSession
-func Cmd(c *exec.Cmd) func(s *ShellSessionOption) {
-	return func(s *ShellSessionOption) {
-		s.cmd = c
-	}
-}
-
-// Mirror sets output mirroring destination for ShellSession
-func Mirror(w io.Writer) func(s *ShellSessionOption) {
-	return func(s *ShellSessionOption) {
-		s.mirror = w
-	}
-}
-
-// DefaultShellSessionOption returns default ShellSessionOption
-func DefaultShellSessionOption() ShellSessionOption {
-	marker := [][]byte{[]byte("###OTT"), []byte("OTT###")}
-	cmd := exec.Command("sh")
-	cmd.Env = append(cmd.Env, "PS1="+string(marker[0])+"$?"+string(marker[1]))
-	cmd.Env = append(cmd.Env, "PS2=")
-	cmd.Env = append(cmd.Env, "HISTFILE=/dev/null")
-	cmd.Args = append(cmd.Args, []string{"--norc", "--noprofile"}...)
-	preMarker := "###OTT-PRE-OTT###"
-	preCommand := "eval \"echo -n '" + preMarker + "'; (exit $?)\"\n"
-	winsize := pty.Winsize{Cols: 80, Rows: 24}
-	buffer := 65536
-
-	return ShellSessionOption{
-		marker:     marker,
-		cmd:        cmd,
-		preMarker:  []byte(preMarker),
-		preCommand: []byte(preCommand),
-		winsize:    winsize,
-		buffer:     buffer,
-	}
-}
-
-// NewShellSession creates ShellSession with opts
-func NewShellSession(opts ...func(s *ShellSessionOption)) (*ShellSession, error) {
-	sess := &ShellSession{}
-	sess.ShellSessionOption = DefaultShellSessionOption()
-	for _, opt := range opts {
-		opt(&sess.ShellSessionOption)
-	}
-
-	ptmx, err := pty.StartWithSize(sess.cmd, &sess.winsize)
-	if err != nil {
-		return nil, err
-	}
-	sess.ptmx = ptmx
-	term.MakeRaw(int(ptmx.Fd()))
-
-	sess.reader = NewReader(sess.buffer, ptmx)
-	sess.parser = NewShellParser(sess.marker, sess.mirror)
-	return sess, nil
-}
 
 // Reader is flexible byte array reader
 type Reader struct {
@@ -128,28 +46,6 @@ func (r *Reader) ReadToPattern(pattern []byte) []byte {
 
 		return pos, buf[:pos]
 	})
-}
-
-func indexMultiple(buf []byte, patterns ...[][]byte) [][][2]int {
-	result := [][][2]int{}
-	bufPos := 0
-
-	for _, pattern := range patterns {
-		ptnResult := [][2]int{}
-		for _, ptn := range pattern {
-			pos := bytes.Index(buf[bufPos:], ptn)
-			if pos == -1 {
-				return result
-			}
-			ptnResult = append(ptnResult, [2]int{bufPos + pos, bufPos + pos + len(ptn)})
-			bufPos += pos + len(ptn)
-		}
-		if len(ptnResult) == 0 {
-			continue
-		}
-		result = append(result, ptnResult)
-	}
-	return result
 }
 
 // MultiPatternParser is pattern based bytes array parser
@@ -238,14 +134,4 @@ func (p *ShellParser) parseReturnCode(data []byte, pos [][2]int) {
 	} else {
 		p.rc = i
 	}
-}
-
-// Run runs command in ShellSession
-func (s *ShellSession) Run(cmd string) (int, string) {
-	s.ptmx.Write(s.preCommand)
-	s.reader.ReadToPattern(s.preMarker)
-
-	s.ptmx.Write([]byte(cmd))
-	outputBytes := s.reader.ReadWithFunc(s.parser.Parse)
-	return s.parser.rc, strings.TrimSuffix(string(outputBytes), "\n")
 }

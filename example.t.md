@@ -51,3 +51,4 @@ docker.io/library/nginx:1.19.3 (has)
   - [ ] show diff (line-based)
   - [ ] show diff (word-based)
   - [ ] non-fenced code block
+  - [ ] ansi

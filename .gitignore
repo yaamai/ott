@@ -3,3 +3,5 @@ ott
 .cache/
 test-*/
 home/
+todo.txt
+logs/

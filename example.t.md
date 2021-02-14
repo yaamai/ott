@@ -8,8 +8,8 @@
 # test B
 
 ```
-# date
-(rc)
+# aaaa
+(rc==127)
 ```
 // TODO: matcher(re)
 // TODO: matcher(rc)
@@ -29,22 +29,25 @@
 
 ```
 # docker pull nginx:1.19.3
-docker.io/library/nginx/1.19.3 (has)
+docker.io/library/nginx:1.19.3 (has)
 ```
 
 # curl
 
 ```
-# curl -vLo/dev/null https://www.google.com
+# curl -Lo/dev/null https://www.google.com
 ```
 
 # todo
 - step-wide matcher
-  - [ ] (rc) matcher
-  - [ ] (has) matcher
+  - [x] (rc) matcher
+  - [x] (has) matcher
 - line-based matcher
   - [ ] /.../ style regex match
   - [ ] normal match
 - other
   - [ ] named pipe (for curl verbose output match and main output match)
   - [ ] `prev` pipe (execute command and buffering, read from buffer with pipe(|) style)
+  - [ ] show diff (line-based)
+  - [ ] show diff (word-based)
+  - [ ] non-fenced code block

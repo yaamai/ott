@@ -32,7 +32,7 @@ type CommandStepResult struct {
 
 // Checker is check CommandStepResult output
 type Checker interface {
-	IsMatch() bool
+	IsMatch(result CommandStepResult) bool
 }
 
 // RcChecker is return-code based checker
@@ -58,8 +58,61 @@ func NewRcChecker(l string) *RcChecker {
 }
 
 // IsMatch checks results has expected return code
-func (m RcChecker) IsMatch() bool {
-	return true
+func (m RcChecker) IsMatch(result CommandStepResult) bool {
+	switch m.oper {
+	case "==":
+		return m.value == result.Rc
+	case "!=":
+		return m.value != result.Rc
+	case "<=":
+		return m.value <= result.Rc
+	case ">=":
+		return m.value >= result.Rc
+	case "<":
+		return m.value < result.Rc
+	case ">":
+		return m.value > result.Rc
+	default:
+		return false
+	}
+}
+
+// HasChecker is return-code based checker
+type HasChecker struct {
+	ptn      string
+	regexPtn *regexp.Regexp
+}
+
+// NewHasChecker creates HasChecker
+func NewHasChecker(l string) *HasChecker {
+	if !strings.HasSuffix(l, " (has)") {
+		return nil
+	}
+
+	ptn := strings.TrimSuffix(l, " (has)")
+	if strings.HasPrefix(ptn, "/") && strings.HasSuffix(ptn, "/") {
+		t := strings.Split(ptn, "/")
+		re, err := regexp.Compile(t[1])
+		if err != nil {
+			return nil
+		}
+		return &HasChecker{regexPtn: re}
+	}
+
+	return &HasChecker{ptn: ptn}
+}
+
+// IsMatch checks results has expected return code
+func (m HasChecker) IsMatch(result CommandStepResult) bool {
+	for _, l := range result.ActualOutput {
+		if m.regexPtn != nil && m.regexPtn.MatchString(l) {
+			return true
+		}
+		if m.regexPtn == nil && m.ptn == l {
+			return true
+		}
+	}
+	return false
 }
 
 var (
@@ -84,6 +137,8 @@ func NewCommandSteps(name string, lines []string) []CommandStep {
 		} else {
 			if m := NewRcChecker(l); m != nil {
 				s.Checker = append(s.Checker, m)
+			} else if m := NewHasChecker(l); m != nil {
+				s.Checker = append(s.Checker, m)
 			} else {
 				s.Output = append(s.Output, l)
 			}
@@ -107,12 +162,12 @@ func (c CommandStep) Run(s *ShellSession) CommandStepResult {
 func (c CommandStepResult) IsOutputsExpected() bool {
 	// check special matcher
 	for idx := range c.Checker {
-		if !c.Checker[idx].IsMatch() {
+		if !c.Checker[idx].IsMatch(c) {
 			return false
 		}
 	}
 
-	if len(c.Output) != len(c.ActualOutput) {
+	if len(c.Output) > 0 && len(c.Output) != len(c.ActualOutput) {
 		return false
 	}
 
@@ -216,7 +271,7 @@ func countCommandStepResults(results []CommandStepResult) (string, int, int) {
 	}
 
 	s := "OK"
-	if success != fail {
+	if fail > 0 {
 		s = "FAIL"
 	}
 	return s, success, fail

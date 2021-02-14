@@ -28,7 +28,7 @@ type ShellSessionOption struct {
 	winsize    pty.Winsize
 	buffer     int
 	mirror     io.Writer
-	parser     ShellParser
+	parser     *ShellParser
 }
 
 // Cmd sets command to execute in ShellSession
@@ -218,11 +218,11 @@ type ShellParser struct {
 }
 
 // NewShellParser creates ShellParser
-func NewShellParser(marker [][]byte, mirror io.Writer) ShellParser {
+func NewShellParser(marker [][]byte, mirror io.Writer) *ShellParser {
 	p := ShellParser{MultiPatternParser: MultiPatternParser{startPattern: marker, endPattern: marker}, mirror: mirror}
 	p.dataCb = p.mirrorData
 	p.endPatternCb = p.parseReturnCode
-	return p
+	return &p
 }
 
 func (p *ShellParser) mirrorData(data []byte) {
@@ -234,9 +234,9 @@ func (p *ShellParser) mirrorData(data []byte) {
 func (p *ShellParser) parseReturnCode(data []byte, pos [][2]int) {
 	i, err := strconv.Atoi(string(data[pos[0][1]:pos[1][0]]))
 	if err != nil {
-		p.rc = i
-	} else {
 		p.rc = -1
+	} else {
+		p.rc = i
 	}
 }
 

@@ -12,12 +12,12 @@ func TestIndexMultiple(t *testing.T) {
 		desc string
 		buf  []byte
 		in   [][]byte
-		out  [][][2]int
+		out  [][][2]int64
 	}{
-		{"empty", []byte{}, [][]byte{}, [][][2]int{}},
-		{"normal", []byte("AAABAAA"), [][]byte{[]byte("B")}, [][][2]int{{{3, 4}}}},
-		{"two-pattern", []byte("AAABABAA"), [][]byte{[]byte("B"), []byte("B")}, [][][2]int{{{3, 4}, {5, 6}}}},
-		{"long-pattern", []byte("AAABBAAA"), [][]byte{[]byte("AAA"), []byte("AAA")}, [][][2]int{{{0, 3}, {5, 8}}}},
+		{"empty", []byte{}, [][]byte{}, [][][2]int64{}},
+		{"normal", []byte("AAABAAA"), [][]byte{[]byte("B")}, [][][2]int64{{{3, 4}}}},
+		{"two-pattern", []byte("AAABABAA"), [][]byte{[]byte("B"), []byte("B")}, [][][2]int64{{{3, 4}, {5, 6}}}},
+		{"long-pattern", []byte("AAABBAAA"), [][]byte{[]byte("AAA"), []byte("AAA")}, [][][2]int64{{{0, 3}, {5, 8}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
@@ -37,7 +37,7 @@ func TestMultiPatternParser(t *testing.T) {
 	p := MultiPatternParser{ptn, ptn, cbFn, nil, nil}
 	for idx, d := range dataIn {
 		buf = append(buf, d...)
-		_, data := p.Parse(buf, len(d))
+		_, data := p.Parse(buf, int64(len(d)))
 
 		if idx == len(dataIn)-1 {
 			expectCb := [][]byte{[]byte("D"), []byte("ATA")}

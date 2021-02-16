@@ -35,11 +35,7 @@ docker.io/library/nginx:1.19.3 (has)
 # curl
 
 ```
-# TEMP=/tmp/bbb
-# curl -Lo$TEMP https://accounts.google.com/.well-known/openid-configuration
-(rc)
-# cat $TEMP | jq .issuer
-"https://accounts.google.com"
+# curl -Lo/dev/null https://www.google.com
 ```
 
 # todo

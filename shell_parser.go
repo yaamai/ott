@@ -27,7 +27,10 @@ func NewReader(size int, r io.Reader) *Reader {
 // ReadWithFunc reads bytes array with specified condition
 func (r *Reader) ReadWithFunc(f func([]byte, int) (int, []byte)) []byte {
 	for {
-		l, _ := r.base.Read(r.buf[r.wpos:])
+		l, err := r.base.Read(r.buf[r.wpos:])
+		if err != nil {
+			return nil
+		}
 		r.wpos += l
 
 		// expand buffer

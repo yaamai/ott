@@ -93,5 +93,8 @@ func (s *ShellSession) Run(cmd string) (int, string) {
 
 	s.ptmx.Write([]byte(cmd))
 	outputBytes := s.reader.ReadWithFunc(s.parser.Parse)
+	if outputBytes == nil {
+		return s.cmd.ProcessState.ExitCode(), ""
+	}
 	return s.parser.rc, strings.TrimSuffix(string(outputBytes), "\n")
 }

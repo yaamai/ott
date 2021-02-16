@@ -42,6 +42,12 @@ docker.io/library/nginx:1.19.3 (has)
 > aaa
 
     # uname -a
+    (rc==1)
+
+# exit
+```
+# exit 1
+```
 
 
 # todo

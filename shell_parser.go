@@ -6,6 +6,9 @@ import (
 	"strconv"
 )
 
+// BufferExpandFactor is buffer expand factor value
+const BufferExpandFactor = 4
+
 // Reader is flexible byte array reader
 type Reader struct {
 	base       io.Reader
@@ -26,6 +29,13 @@ func (r *Reader) ReadWithFunc(f func([]byte, int) (int, []byte)) []byte {
 	for {
 		l, _ := r.base.Read(r.buf[r.wpos:])
 		r.wpos += l
+
+		// expand buffer
+		if len(r.buf) <= r.wpos {
+			t := make([]byte, len(r.buf)*BufferExpandFactor)
+			copy(t, r.buf)
+			r.buf = t
+		}
 
 		l, output := f(r.buf[r.rpos:r.wpos], l)
 		if output != nil {

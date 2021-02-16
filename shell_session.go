@@ -54,7 +54,7 @@ func DefaultShellSessionOption() ShellSessionOption {
 	preMarker := "###OTT-PRE-OTT###"
 	preCommand := "eval \"echo -n '" + preMarker + "'; (exit $?)\"\n"
 	winsize := pty.Winsize{Cols: 80, Rows: 24}
-	buffer := 65536
+	buffer := 128
 
 	return ShellSessionOption{
 		marker:     marker,

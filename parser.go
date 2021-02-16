@@ -55,6 +55,18 @@ func createNewSegments(source *[]byte, l []string) *text.Segments {
 	return s
 }
 
+func getNearestHeading(fileBytes []byte, targetNode ast.Node) string {
+	n := targetNode
+	for limit := 0; limit < 3; limit++ {
+		if head, ok := n.PreviousSibling().(*ast.Heading); ok {
+			text := head.Lines().At(0)
+			return string(text.Value(fileBytes))
+		}
+		n = n.PreviousSibling()
+	}
+	return ""
+}
+
 func walkCodeBlocks(source []byte, f func(n ast.Node, lines []string) []string) (ast.Node, []byte) {
 	// prepare parser
 	gm := newGoldmark()
@@ -62,7 +74,7 @@ func walkCodeBlocks(source []byte, f func(n ast.Node, lines []string) []string) 
 
 	// walk and modify asts
 	ast.Walk(asts, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if n.Kind() == ast.KindFencedCodeBlock && !entering {
+		if (n.Kind() == ast.KindFencedCodeBlock || n.Kind() == ast.KindCodeBlock) && !entering {
 			result := f(n, convertSegmentsToStringList(source, n.Lines()))
 			if result != nil {
 				n.SetLines(createNewSegments(&source, result))

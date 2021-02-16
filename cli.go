@@ -149,12 +149,7 @@ func (c *Cli) RunFile(filename string) ([]CommandStepResult, error) {
 	}
 
 	_, modified := walkCodeBlocks(fileBytes, func(n ast.Node, lines []string) []string {
-		var name string
-		if prev, ok := n.(*ast.FencedCodeBlock).PreviousSibling().(*ast.Heading); ok {
-			text := prev.Lines().At(0)
-			name = string(text.Value(fileBytes))
-		}
-
+		name := getNearestHeading(fileBytes, n)
 		steps := NewCommandSteps(name, lines)
 		stepsResults := []CommandStepResult{}
 		for _, s := range steps {

@@ -38,6 +38,12 @@ docker.io/library/nginx:1.19.3 (has)
 # curl -Lo/dev/null https://www.google.com
 ```
 
+# non-fenced code block
+> aaa
+
+    # uname -a
+
+
 # todo
 - step-wide matcher
   - [x] (rc) matcher
@@ -50,5 +56,5 @@ docker.io/library/nginx:1.19.3 (has)
   - [ ] `prev` pipe (execute command and buffering, read from buffer with pipe(|) style)
   - [ ] show diff (line-based)
   - [ ] show diff (word-based)
-  - [ ] non-fenced code block
+  - [x] non-fenced code block
   - [ ] ansi

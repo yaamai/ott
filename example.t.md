@@ -1,3 +1,31 @@
+
+
+
+# test-title
+
+```
+<< for i in $(seq 3); do
+>   echo \# echo $i
+>   echo $1
+> done
+
+# echo a
+a
+
+$ echo b
+b
+
+# for i in $(seq 3); do
+> echo $i
+> sleep 1
+> done
+1
+2
+3
+```
+
+
+
 # test A
 
   ```
@@ -64,3 +92,19 @@ docker.io/library/nginx:1.19.3 (has)
   - [ ] show diff (word-based)
   - [x] non-fenced code block
   - [ ] ansi
+  - [ ] per loop checker in for
+    - [ ] use `set -e`?
+    - [ ] generate command-line strings in bash then send to ott and execute each
+      ```
+      << for i in $(seq 3); do
+      >   echo \# echo $i
+      >   echo $1
+      > done
+
+      # echo 1
+      1
+      # echo 2
+      2
+      # echo 3
+      3
+      ```

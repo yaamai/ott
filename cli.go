@@ -128,7 +128,7 @@ func (c *Cli) onTestStepStart(stepname string, step CommandStep) {
 
 func (c *Cli) onTestStepEnd(stepname string, step CommandStepResult) {
 	if c.quiet {
-		if step.IsOutputsExpected() {
+		if step.Check() {
 			fmt.Print(".")
 		} else {
 			fmt.Print("!")
@@ -149,15 +149,17 @@ func (c *Cli) RunFile(filename string) ([]CommandStepResult, error) {
 	}
 
 	_, modified := walkCodeBlocks(fileBytes, func(n ast.Node, lines []string) []string {
-		name := getNearestHeading(fileBytes, n)
-		steps := NewCommandSteps(name, lines)
+		// name := getNearestHeading(fileBytes, n)
+		// steps := NewCommandStep(name, lines)
 		stepsResults := []CommandStepResult{}
-		for _, s := range steps {
-			c.onTestStepStart(name, s)
-			r := s.Run(c.sess)
-			c.onTestStepEnd(name, r)
-			stepsResults = append(stepsResults, r)
-		}
+		/*
+			for _, s := range steps {
+				c.onTestStepStart(name, s)
+				r := s.Run(c.sess)
+				c.onTestStepEnd(name, r)
+				stepsResults = append(stepsResults, r)
+			}
+		*/
 		fileResults = append(fileResults, stepsResults...)
 		return convertCommandStepResults(stepsResults)
 	})

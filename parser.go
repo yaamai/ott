@@ -57,7 +57,7 @@ func createNewSegments(source *[]byte, l []string) *text.Segments {
 
 func getNearestHeading(fileBytes []byte, targetNode ast.Node) string {
 	n := targetNode
-	for limit := 0; limit < 3; limit++ {
+	for limit := 0; limit < 3 && n.PreviousSibling() != nil; limit++ {
 		if head, ok := n.PreviousSibling().(*ast.Heading); ok {
 			text := head.Lines().At(0)
 			return string(text.Value(fileBytes))

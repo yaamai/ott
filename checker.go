@@ -11,9 +11,9 @@ var (
 	RegexpRcMatch = regexp.MustCompile(`\(rc\s*((==|!=|<|>|<=|>=)([0-9]+))?\)$`)
 )
 
-// Checker is check CommandStepResult output
-type Checker interface {
-	IsMatch(result CommandStepResult) bool
+// CommandChecker is check CommandStepResult output
+type CommandChecker interface {
+	IsMatch(result CommandResult) bool
 }
 
 // RcChecker is return-code based checker
@@ -39,7 +39,7 @@ func NewRcChecker(l string) *RcChecker {
 }
 
 // IsMatch checks results has expected return code
-func (m RcChecker) IsMatch(result CommandStepResult) bool {
+func (m RcChecker) IsMatch(result CommandResult) bool {
 	switch m.oper {
 	case "==":
 		return m.value == result.Rc
@@ -84,7 +84,7 @@ func NewHasChecker(l string) *HasChecker {
 }
 
 // IsMatch checks results has expected return code
-func (m HasChecker) IsMatch(result CommandStepResult) bool {
+func (m HasChecker) IsMatch(result CommandResult) bool {
 	for _, l := range result.ActualOutput {
 		if m.regexPtn != nil && m.regexPtn.MatchString(l) {
 			return true

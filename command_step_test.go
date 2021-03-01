@@ -6,8 +6,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSplitByPrefixes(t *testing.T) {
+func TestNewCommand(t *testing.T) {
+	data := []string{
+		"# fff",
+		"> ggg",
+		"iii",
+	}
+	c := newCommand(data)
+	assert.Equal(t, Command{}, c)
+}
 
+func TestParseCodeBlock(t *testing.T) {
 	data := []string{
 		"<< aaa",
 		"> bbb",
@@ -20,10 +29,34 @@ func TestSplitByPrefixes(t *testing.T) {
 		"> ggg",
 		"iii",
 	}
-	p := splitByPrefixes(data, []string{"<< ", "$ ", "# "}, []string{"<< ", "$ ", "# ", "> "})
-	assert.Equal(t, 4, len(p))
-	assert.Equal(t, map[string][]string{"<< ": {"aaa"}, "> ": {"bbb", "ccc"}}, p[0])
-	assert.Equal(t, map[string][]string{"$ ": {"ddd"}, "": {"hhh"}}, p[1])
-	assert.Equal(t, map[string][]string{"# ": {"eee"}, "": {""}}, p[2])
-	assert.Equal(t, map[string][]string{"# ": {"fff"}, "> ": {"ggg"}, "": {"iii"}}, p[3])
+	c := ParseCodeBlock("", data)
+	assert.Equal(t, CodeBlock{
+		Name: "",
+		Codes: []Code{
+			&TemplateCommand{TemplateCommand: []string{"aaa", "bbb", "ccc"}},
+			&Command{Command: []string{"ddd"}, Output: []string{"hhh"}, Checker: []CommandChecker{}},
+			&Command{Command: []string{"eee"}, Output: []string{""}, Checker: []CommandChecker{}},
+			&Command{Command: []string{"fff", "ggg"}, Output: []string{"iii"}, Checker: []CommandChecker{}},
+		},
+	}, c)
+}
+
+func TestParseCodeBlock2(t *testing.T) {
+	data := []string{
+		"# ddd",
+		"",
+		"# eee",
+		"",
+		"# fff",
+		"",
+	}
+	c := ParseCodeBlock("", data)
+	assert.Equal(t, CodeBlock{
+		Name: "",
+		Codes: []Code{
+			&Command{Command: []string{"ddd"}, Output: []string{""}, Checker: []CommandChecker{}},
+			&Command{Command: []string{"eee"}, Output: []string{""}, Checker: []CommandChecker{}},
+			&Command{Command: []string{"fff"}, Output: []string{""}, Checker: []CommandChecker{}},
+		},
+	}, c)
 }

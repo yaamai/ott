@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/yuin/goldmark/ast"
 )
 
 // Cli represents CLI
@@ -74,7 +73,7 @@ func parseOutputFlag(filename, out string) (string, TemplateContext) {
 	return templateStr, ctx
 }
 
-func (c *Cli) outputFiles(origFilename string, input, output []byte, results []CommandStepResult) {
+func (c *Cli) outputFiles(origFilename string, input, output []byte, results []CodeResult) {
 	for _, out := range c.outputs {
 		var b strings.Builder
 		templateStr, ctx := parseOutputFlag(origFilename, out)
@@ -105,7 +104,7 @@ func (c *Cli) onFileStart(filename string) {
 	}
 }
 
-func (c *Cli) onFileEnd(filename string, input, output []byte, results []CommandStepResult) {
+func (c *Cli) onFileEnd(filename string, input, output []byte, results []CodeResult) {
 	if !c.quiet {
 		fmt.Printf("=>")
 	}
@@ -115,18 +114,17 @@ func (c *Cli) onFileEnd(filename string, input, output []byte, results []Command
 	c.outputFiles(filename, input, output, results)
 }
 
-func (c *Cli) onTestStepStart(stepname string, step CommandStep) {
+func (c *Cli) onCodeBlockStart(cbName string) {}
+func (c *Cli) onCodeBlockEnd(cbName string)   {}
+
+func (c *Cli) onCodeStart(cbName string, step Code) {
 	if !c.quiet {
-		color.New(color.FgCyan).Printf("%s:\n", stepname)
-		prompt := "#"
-		for _, cmd := range step.Command {
-			fmt.Printf("%s %s\n", prompt, cmd)
-			prompt = ">"
-		}
+		color.New(color.FgCyan).Printf("%s:\n", cbName)
+		fmt.Print(strings.Join(step.StringLines(), ""))
 	}
 }
 
-func (c *Cli) onTestStepEnd(stepname string, step CommandStepResult) {
+func (c *Cli) onCodeEnd(cbName string, step CodeResult) {
 	if c.quiet {
 		if step.Check() {
 			fmt.Print(".")
@@ -139,38 +137,18 @@ func (c *Cli) onTestStepEnd(stepname string, step CommandStepResult) {
 }
 
 // RunFile runs file-based tests
-func (c *Cli) RunFile(filename string) ([]CommandStepResult, error) {
-	fileResults := []CommandStepResult{}
-
-	c.onFileStart(filename)
+func (c *Cli) RunFile(filename string) ([]CodeResult, error) {
 	fileBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	_, modified := walkCodeBlocks(fileBytes, func(n ast.Node, lines []string) []string {
-		// name := getNearestHeading(fileBytes, n)
-		// steps := NewCommandStep(name, lines)
-		stepsResults := []CommandStepResult{}
-		/*
-			for _, s := range steps {
-				c.onTestStepStart(name, s)
-				r := s.Run(c.sess)
-				c.onTestStepEnd(name, r)
-				stepsResults = append(stepsResults, r)
-			}
-		*/
-		fileResults = append(fileResults, stepsResults...)
-		return convertCommandStepResults(stepsResults)
-	})
-
-	c.onFileEnd(filename, fileBytes, modified, fileResults)
-	return fileResults, nil
+	return RunMarkdown(filename, fileBytes, c.sess, c), nil
 }
 
 // RunFiles runs multiple file-based tests
-func (c *Cli) RunFiles(filenames []string) (map[string][]CommandStepResult, error) {
-	results := map[string][]CommandStepResult{}
+func (c *Cli) RunFiles(filenames []string) (map[string][]CodeResult, error) {
+	results := map[string][]CodeResult{}
 
 	for _, filename := range filenames {
 		c.RunFile(filename)

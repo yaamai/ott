@@ -7,6 +7,24 @@ import (
 	"github.com/yuin/goldmark/ast"
 )
 
+// Code represents runnable in shell
+type Code interface {
+	Run(s *ShellSession) CodeResult
+	StringLines() []string
+}
+
+// TemplateCode represents template runnable in shell
+type TemplateCode interface {
+	RunTemplate(s *ShellSession) []string
+	StringLines() []string
+}
+
+// CodeResult represents checkable with shell
+type CodeResult interface {
+	Check() bool
+	StringLines() []string
+}
+
 // RunnerHook provide hook interface when running
 type RunnerHook interface {
 	onFileStart(filename string)
@@ -24,16 +42,15 @@ func RunMarkdown(filename string, bytes []byte, sess *ShellSession, hook RunnerH
 	fileResults := []CodeResult{}
 	_, modified := walkCodeBlocks(bytes, func(n ast.Node, lines []string) []string {
 		name := getNearestHeading(bytes, n)
-		cb := ParseCodeBlock(name, lines)
 		hook.onCodeBlockStart(name)
 
 		cbResults := []CodeResult{}
-		for _, c := range cb.Codes {
+		walkCodes(lines, sess, func(c Code) {
 			hook.onCodeStart(name, c)
 			r := c.Run(sess)
 			hook.onCodeEnd(name, r)
 			cbResults = append(cbResults, r)
-		}
+		})
 		fileResults = append(fileResults, cbResults...)
 
 		hook.onCodeBlockEnd(name)
@@ -45,49 +62,71 @@ func RunMarkdown(filename string, bytes []byte, sess *ShellSession, hook RunnerH
 	return fileResults
 }
 
-// RunCodeBlock run a codeblock and call hooks
-func RunCodeBlock(lines []string, s *ShellSession, hooks RunnerHook) {
-	result := []Code{}
-	for len(lines) > 0 {
-		rest, code := readLinesToFunc(lines, func(l string) (bool, string) {
-			p := hasAnyPrefix(l, "<< ", "$ ", "# ")
-			return p != "", l
-		})
-		lines = rest
-
-		if c := newTemplateCommand(code); c != nil {
-			result = append(result, c)
-		} else if c := newCommand(code); c != nil {
-			r := c.Run(s)
-			result = append(result, c)
-		} else {
-			break
-		}
+func parseCode(kind string, buf map[string][]string) interface{} {
+	switch kind {
+	case "<< ":
+		return &TemplateCommand{TemplateCommand: append(buf["<< "], buf["> "]...)}
+	case "$ ":
+		out, chk := parseOutput(buf[""])
+		return &Command{Command: append(buf["$ "], buf["> "]...), Output: out, Checker: chk}
+	case "# ":
+		out, chk := parseOutput(buf[""])
+		return &Command{Command: append(buf["# "], buf["> "]...), Output: out, Checker: chk}
+	default:
+		return nil
 	}
 }
 
-// CodeBlock represents a CodeBlock in markdown
-type CodeBlock struct {
-	Name  string `json:"name"`
-	Codes []Code
+func walkAnyCodes(lines []string, f func(c interface{})) {
+	codeSeparater := []string{"<< ", "$ ", "# "}
+	codePrefixes := []string{"> "}
+
+	codeKind := ""
+	buf := map[string][]string{}
+	for _, l := range lines {
+		p := hasAnyPrefix(l, codeSeparater...)
+		if p == "" {
+			p = hasAnyPrefix(l, codePrefixes...)
+			buf[p] = append(buf[p], strings.TrimPrefix(l, p))
+			continue
+		}
+
+		if codeKind != "" {
+			f(parseCode(codeKind, buf))
+			buf = map[string][]string{}
+		}
+		codeKind = p
+		buf[p] = append(buf[p], strings.TrimPrefix(l, p))
+	}
+	if codeKind != "" && len(buf) > 0 {
+		f(parseCode(codeKind, buf))
+	}
 }
 
-// Code represents runnable in shell
-type Code interface {
-	Run(s *ShellSession) CodeResult
-	StringLines() []string
+func walkCodes(lines []string, sess *ShellSession, f func(c Code)) {
+	var expandTemplate func(c interface{})
+	expandTemplate = func(c interface{}) {
+		switch v := c.(type) {
+		case TemplateCode:
+			walkAnyCodes(v.RunTemplate(sess), expandTemplate)
+		case Code:
+			f(v)
+		}
+	}
+	walkAnyCodes(lines, expandTemplate)
 }
 
-// CodeResult represents checkable with shell
-type CodeResult interface {
-	Check() bool
-	StringLines() []string
-}
-
-// TemplateCommand represents a meta command-line
+// TemplateCommand represents a template command-line
 type TemplateCommand struct {
-	Codes           []Code
 	TemplateCommand []string `json:"template_command"`
+	Template        []string
+}
+
+// RunTemplate execute TemplateCommand and return CodeResult
+func (c *TemplateCommand) RunTemplate(s *ShellSession) []string {
+	_, result := s.Run(strings.Join(c.TemplateCommand, "\n") + "\n")
+	c.Template = strings.Split(result, "\n")
+	return c.Template
 }
 
 // Command represents a command-line
@@ -104,42 +143,10 @@ type CommandResult struct {
 	Rc           int      `json:"rc"`
 }
 
-func newTemplateCommand(lines []string) *TemplateCommand {
-	if hasAnyPrefix(lines[0], "<< ") == "" {
-		return nil
-	}
-	_, command := readLinesToFunc(lines, func(l string) (bool, string) {
-		p := hasAnyPrefix(l, "<< ", "> ")
-		return p == "", strings.TrimPrefix(l, p)
-	})
-
-	return &TemplateCommand{TemplateCommand: command}
-}
-
-func readLinesToFunc(lines []string, f func(l string) (bool, string)) ([]string, []string) {
-	r := []string{}
-	for idx, l := range lines {
-		end, l := f(l)
-		if end && idx > 0 {
-			return lines[idx:], r
-		}
-		r = append(r, l)
-	}
-	return []string{}, r
-}
-
-func newCommand(lines []string) *Command {
-	if hasAnyPrefix(lines[0], "$ ", "# ") == "" {
-		return nil
-	}
-	rest, command := readLinesToFunc(lines, func(l string) (bool, string) {
-		p := hasAnyPrefix(l, "$ ", "# ", "> ")
-		return p == "", strings.TrimPrefix(l, p)
-	})
-
+func parseOutput(lines []string) ([]string, []CommandChecker) {
 	output := []string{}
 	checker := []CommandChecker{}
-	for _, l := range rest {
+	for _, l := range lines {
 		if m := NewRcChecker(l); m != nil {
 			checker = append(checker, m)
 		} else if m := NewHasChecker(l); m != nil {
@@ -149,29 +156,7 @@ func newCommand(lines []string) *Command {
 		}
 	}
 
-	return &Command{Command: command, Output: output, Checker: checker}
-}
-
-// ParseCodeBlock parses code block string lines to CodeBlock
-func ParseCodeBlock(name string, lines []string) CodeBlock {
-	result := []Code{}
-	for len(lines) > 0 {
-		rest, code := readLinesToFunc(lines, func(l string) (bool, string) {
-			p := hasAnyPrefix(l, "<< ", "$ ", "# ")
-			return p != "", l
-		})
-		lines = rest
-
-		if c := newTemplateCommand(code); c != nil {
-			result = append(result, c)
-		} else if c := newCommand(code); c != nil {
-			result = append(result, c)
-		} else {
-			break
-		}
-	}
-
-	return CodeBlock{Name: name, Codes: result}
+	return output, checker
 }
 
 // Run execute CommandStep and return CodeResult
@@ -179,15 +164,6 @@ func (c Command) Run(s *ShellSession) CodeResult {
 	rc, result := s.Run(strings.Join(c.Command, "\n") + "\n")
 	o := CommandResult{Command: c, ActualOutput: strings.Split(result, "\n"), Rc: rc}
 	return o
-}
-
-// Run execute TemplateCommand and return CodeResult
-func (c *TemplateCommand) Run(s *ShellSession) CodeResult {
-	_, result := s.Run(strings.Join(c.TemplateCommand, "\n") + "\n")
-	cb := ParseCodeBlock("", strings.Split(result, "\n"))
-	c.Codes = cb.Codes
-
-	return c.Command.Run(s)
 }
 
 // Check checks CommandStepResult is expected outputs or not
@@ -241,7 +217,8 @@ func (c CommandResult) StringLines() []string {
 
 // StringLines convert CommandStepResult to array of string
 func (c TemplateCommand) StringLines() []string {
-	return c.Command.StringLines()
+	return nil
+	// return c.Command.StringLines()
 }
 
 func countCommandStepResults(results []CodeResult) (string, int, int) {

@@ -6,17 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewCommand(t *testing.T) {
-	data := []string{
-		"# fff",
-		"> ggg",
-		"iii",
-	}
-	c := newCommand(data)
-	assert.Equal(t, Command{}, c)
-}
-
-func TestParseCodeBlock(t *testing.T) {
+func TestWalkAnyCodes(t *testing.T) {
 	data := []string{
 		"<< aaa",
 		"> bbb",
@@ -29,34 +19,16 @@ func TestParseCodeBlock(t *testing.T) {
 		"> ggg",
 		"iii",
 	}
-	c := ParseCodeBlock("", data)
-	assert.Equal(t, CodeBlock{
-		Name: "",
-		Codes: []Code{
-			&TemplateCommand{TemplateCommand: []string{"aaa", "bbb", "ccc"}},
-			&Command{Command: []string{"ddd"}, Output: []string{"hhh"}, Checker: []CommandChecker{}},
-			&Command{Command: []string{"eee"}, Output: []string{""}, Checker: []CommandChecker{}},
-			&Command{Command: []string{"fff", "ggg"}, Output: []string{"iii"}, Checker: []CommandChecker{}},
-		},
-	}, c)
-}
+	actual := []interface{}{}
+	walkAnyCodes(data, func(c interface{}) {
+		actual = append(actual, c)
+	})
 
-func TestParseCodeBlock2(t *testing.T) {
-	data := []string{
-		"# ddd",
-		"",
-		"# eee",
-		"",
-		"# fff",
-		"",
+	expected := []interface{}{
+		&TemplateCommand{TemplateCommand: []string{"aaa", "bbb", "ccc"}},
+		&Command{Command: []string{"ddd"}, Output: []string{"hhh"}, Checker: []CommandChecker{}},
+		&Command{Command: []string{"eee"}, Output: []string{""}, Checker: []CommandChecker{}},
+		&Command{Command: []string{"fff", "ggg"}, Output: []string{"iii"}, Checker: []CommandChecker{}},
 	}
-	c := ParseCodeBlock("", data)
-	assert.Equal(t, CodeBlock{
-		Name: "",
-		Codes: []Code{
-			&Command{Command: []string{"ddd"}, Output: []string{""}, Checker: []CommandChecker{}},
-			&Command{Command: []string{"eee"}, Output: []string{""}, Checker: []CommandChecker{}},
-			&Command{Command: []string{"fff"}, Output: []string{""}, Checker: []CommandChecker{}},
-		},
-	}, c)
+	assert.Equal(t, expected, actual)
 }

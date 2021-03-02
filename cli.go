@@ -132,6 +132,11 @@ func (c *Cli) onCodeEnd(cbName string, step CodeResult) {
 			fmt.Print("!")
 		}
 	} else {
+		if step.Check() {
+			color.New(color.FgGreen).Printf("=> OK\n")
+		} else {
+			color.New(color.FgRed).Printf("=> FAIL\n")
+		}
 		fmt.Print("\n")
 	}
 }

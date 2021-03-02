@@ -6,7 +6,7 @@
 ```
 << for i in $(seq 3); do
 >   echo \# echo $i
->   echo $1
+>   echo $i
 > done
 
 # echo a

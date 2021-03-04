@@ -155,6 +155,12 @@ func parseOutput(lines []string) ([]string, []CommandChecker) {
 			output = append(output, l)
 		}
 	}
+	for idx := len(output)-1; idx >= 0; idx-- {
+		if len(output[idx]) != 0 {
+			output = output[0:idx+1]
+			break
+		}
+	}
 
 	return output, checker
 }

@@ -70,7 +70,7 @@ docker.io/library/nginx:1.19.3 (has)
 > aaa
 
     # uname -a
-    (rc==1)
+    (rc)
 
 # exit
 ```
@@ -98,7 +98,7 @@ docker.io/library/nginx:1.19.3 (has)
       ```
       << for i in $(seq 3); do
       >   echo \# echo $i
-      >   echo $1
+      >   echo $i
       > done
 
       # echo 1

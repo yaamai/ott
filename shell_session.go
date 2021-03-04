@@ -46,7 +46,7 @@ func Mirror(w io.Writer) func(s *ShellSessionOption) {
 // DefaultShellSessionOption returns default ShellSessionOption
 func DefaultShellSessionOption() ShellSessionOption {
 	marker := [][]byte{[]byte("###OTT"), []byte("OTT###")}
-	cmd := exec.Command("sh")
+	cmd := exec.Command("bash")
 	cmd.Env = append(cmd.Env, "PS1="+string(marker[0])+"$?"+string(marker[1]))
 	cmd.Env = append(cmd.Env, "PS2=")
 	cmd.Env = append(cmd.Env, "HISTFILE=/dev/null")
